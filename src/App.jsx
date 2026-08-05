@@ -32,23 +32,25 @@ export default function App() {
   const [isFirebaseOnline, setIsFirebaseOnline] = useState(firebaseService.isOnline);
   const [isFirebaseModalOpen, setIsFirebaseModalOpen] = useState(false);
 
-  // Same-frame holding counter matching fun_util.py (count_same_frame > 20)
+  // Same-frame holding counter matching fun_util.py (count_same_frame >= 12)
   const countSameFrameRef = useRef(0);
   const oldTextRef = useRef('');
 
-  // Handle incoming MediaPipe hand landmark detection results
+  // Handle incoming MediaPipe hand landmark detection results (Tasks Vision & Legacy)
   const handleLandmarksDetected = (results) => {
     setRawResults(results);
 
-    if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-      const firstHand = results.multiHandLandmarks[0];
-      const handedness = results.multiHandedness[0]?.label || 'Right';
+    const landmarksList = results?.landmarks || results?.multiHandLandmarks;
+
+    if (landmarksList && landmarksList.length > 0) {
+      const firstHand = landmarksList[0];
+      const handedness = results?.handednesses?.[0]?.[0]?.displayName || results?.multiHandedness?.[0]?.label || 'Right';
 
       const currentPrediction = classifyGesture(firstHand, handedness);
       setPrediction(currentPrediction);
 
       // Frame Stability Counter matching fun_util.py
-      if (currentPrediction.text && currentPrediction.confidence > 0.85) {
+      if (currentPrediction.text && currentPrediction.confidence > 0.82) {
         if (oldTextRef.current === currentPrediction.text) {
           countSameFrameRef.current += 1;
         } else {
@@ -56,8 +58,8 @@ export default function App() {
           countSameFrameRef.current = 0;
         }
 
-        // When held continuously for ~15-20 frames
-        if (countSameFrameRef.current >= 15) {
+        // When held continuously for ~12 frames
+        if (countSameFrameRef.current >= 12) {
           countSameFrameRef.current = 0; // Reset counter
 
           if (mode === 'text') {
@@ -86,7 +88,7 @@ export default function App() {
         confidence: 0,
         symbol: '🖐️',
         category: 'Standby',
-        description: 'Position hand in front of camera'
+        description: 'Position hand inside green target box'
       });
       oldTextRef.current = '';
       countSameFrameRef.current = 0;
@@ -119,7 +121,7 @@ export default function App() {
             <div className="right-column">
               <PredictionDisplay
                 prediction={prediction}
-                rawHandedness={rawResults?.multiHandedness?.[0]?.label}
+                rawHandedness={rawResults?.handednesses?.[0]?.[0]?.displayName || rawResults?.multiHandedness?.[0]?.label}
               />
 
               <SentenceBuilder
@@ -155,7 +157,7 @@ export default function App() {
 
       {/* Footer */}
       <footer className="app-footer glass-panel">
-        <p>AI-Based Sign Language Recognition System &copy; 2026 | Powered by Keras 44-Class Model, MediaPipe & Firebase</p>
+        <p>AI-Based Sign Language Recognition System &copy; 2026 | Powered by MediaPipe Tasks Vision & Firebase</p>
       </footer>
     </div>
   );

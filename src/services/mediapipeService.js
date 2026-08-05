@@ -1,91 +1,83 @@
 /**
- * MediaPipe Hands Computer Vision Pipeline Manager
- * Captures video stream, detects 21 hand landmarks, and draws real-time canvas overlays.
- * Mobile & Desktop Optimized with Dynamic Canvas Scaling & ROI Guidance.
+ * MediaPipe Tasks Vision Hand Landmarker Pipeline
+ * Powered by @mediapipe/tasks-vision
+ * 100% Cross-Platform Mobile (iOS Safari, Android Chrome) & Desktop Compatibility.
  */
+
+import { HandLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
 
 export class MediaPipeService {
   constructor() {
-    this.hands = null;
-    this.camera = null;
+    this.handLandmarker = null;
     this.isInitialized = false;
-    this.onResultsCallback = null;
     this.animFrameId = null;
+    this.onResultsCallback = null;
+    this.lastVideoTime = -1;
   }
 
-  initialize(videoElement, canvasElement, onResultsCallback) {
+  async initialize(videoElement, canvasElement, onResultsCallback) {
     this.onResultsCallback = onResultsCallback;
 
-    const Hands = window.Hands || (typeof MediaPipeHands !== 'undefined' ? MediaPipeHands.Hands : null);
-    const Camera = window.Camera;
-
-    if (!Hands) {
-      console.warn("MediaPipe Hands library not loaded globally, attempting lazy load.");
-    }
-
     try {
-      this.hands = new Hands({
-        locateFile: (file) => {
-          return `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469242/${file}`;
-        }
-      });
+      // 1. Initialize WASM Fileset Resolver
+      const vision = await FilesetResolver.forVisionTasks(
+        'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm'
+      );
 
-      this.hands.setOptions({
-        maxNumHands: 2,
-        modelComplexity: 1,
-        minDetectionConfidence: 0.5,
+      // 2. Create HandLandmarker with GPU / WebGL delegate
+      this.handLandmarker = await HandLandmarker.createFromOptions(vision, {
+        baseOptions: {
+          modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
+          delegate: 'GPU'
+        },
+        runningMode: 'VIDEO',
+        numHands: 2,
+        minHandDetectionConfidence: 0.5,
+        minHandPresenceConfidence: 0.5,
         minTrackingConfidence: 0.5
       });
 
-      this.hands.onResults((results) => {
-        // Sync Canvas Dimensions with Video Stream (Crucial for Mobile Aspect Ratios)
-        if (videoElement && canvasElement && videoElement.videoWidth > 0) {
-          if (canvasElement.width !== videoElement.videoWidth) {
-            canvasElement.width = videoElement.videoWidth;
-            canvasElement.height = videoElement.videoHeight;
-          }
-        }
-
-        this.drawCanvasOverlay(canvasElement, results);
-        if (this.onResultsCallback) {
-          this.onResultsCallback(results);
-        }
-      });
-
       this.isInitialized = true;
+      console.log("MediaPipe Tasks Vision HandLandmarker initialized successfully!");
 
-      // Start processing loop
-      if (videoElement && Camera) {
-        this.camera = new Camera(videoElement, {
-          onFrame: async () => {
-            if (videoElement && videoElement.readyState >= 2 && this.hands && this.isInitialized) {
-              try {
-                await this.hands.send({ image: videoElement });
-              } catch (err) {
-                // Ignore cleanup frame errors
-              }
-            }
-          },
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        });
-        this.camera.start();
-      } else {
-        // Fallback requestAnimationFrame loop for Mobile Browsers
-        const processFrame = async () => {
-          if (this.isInitialized && videoElement && videoElement.readyState >= 2 && this.hands) {
+      // 3. Start Video Detection Frame Loop
+      const processVideoFrame = () => {
+        if (this.isInitialized && videoElement && videoElement.readyState >= 2 && this.handLandmarker) {
+          if (videoElement.currentTime !== this.lastVideoTime) {
+            this.lastVideoTime = videoElement.currentTime;
+
             try {
-              await this.hands.send({ image: videoElement });
-            } catch (e) {}
+              const startTimeMs = performance.now();
+              const results = this.handLandmarker.detectForVideo(videoElement, startTimeMs);
+
+              // Sync Canvas dimensions to Video Aspect Ratio
+              if (canvasElement && videoElement.videoWidth > 0) {
+                if (canvasElement.width !== videoElement.videoWidth) {
+                  canvasElement.width = videoElement.videoWidth;
+                  canvasElement.height = videoElement.videoHeight;
+                }
+              }
+
+              this.drawCanvasOverlay(canvasElement, results);
+
+              if (this.onResultsCallback) {
+                this.onResultsCallback(results);
+              }
+            } catch (err) {
+              console.warn("HandLandmarker detection notice:", err);
+            }
           }
-          if (this.isInitialized) {
-            this.animFrameId = requestAnimationFrame(processFrame);
-          }
-        };
-        this.animFrameId = requestAnimationFrame(processFrame);
-      }
+        }
+
+        if (this.isInitialized) {
+          this.animFrameId = requestAnimationFrame(processVideoFrame);
+        }
+      };
+
+      this.animFrameId = requestAnimationFrame(processVideoFrame);
+
     } catch (e) {
-      console.error("Error initializing MediaPipe Hands:", e);
+      console.error("Error initializing MediaPipe Tasks Vision:", e);
     }
   }
 
@@ -95,13 +87,9 @@ export class MediaPipeService {
       cancelAnimationFrame(this.animFrameId);
       this.animFrameId = null;
     }
-    if (this.camera) {
-      try { this.camera.stop(); } catch (e) {}
-      this.camera = null;
-    }
-    if (this.hands) {
-      try { this.hands.close(); } catch (e) {}
-      this.hands = null;
+    if (this.handLandmarker) {
+      try { this.handLandmarker.close(); } catch (e) {}
+      this.handLandmarker = null;
     }
   }
 
@@ -111,12 +99,11 @@ export class MediaPipeService {
     const ctx = canvasElement.getContext('2d');
     const width = canvasElement.width || 640;
     const height = canvasElement.height || 480;
-    const HAND_CONNECTIONS = window.HAND_CONNECTIONS;
 
     ctx.save();
     ctx.clearRect(0, 0, width, height);
 
-    // 1. Draw Target ROI Detection Box (matching Python project crop area)
+    // 1. Draw Target ROI Detection Box (Green target rectangle)
     const roiW = Math.round(width * 0.45);
     const roiH = Math.round(height * 0.55);
     const roiX = width - roiW - 20;
@@ -135,9 +122,9 @@ export class MediaPipeService {
     ctx.fillText('PLACE HAND HERE', roiX + 8, roiY - 8);
 
     // 2. Draw Detected Hand Joint Landmarks
-    if (results && results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-      results.multiHandLandmarks.forEach((landmarks, index) => {
-        const handedness = results.multiHandedness[index]?.label || 'Hand';
+    if (results && results.landmarks && results.landmarks.length > 0) {
+      results.landmarks.forEach((landmarks, index) => {
+        const handedness = results.handednesses?.[index]?.[0]?.displayName || 'Hand';
 
         // Calculate Bounding Box
         let minX = width, minY = height, maxX = 0, maxY = 0;
@@ -169,8 +156,16 @@ export class MediaPipeService {
           ctx.fillText(`${handedness} Hand`, minX + 6, minY - 8);
         }
 
-        // Skeleton Lines
-        if (options.showSkeleton && HAND_CONNECTIONS) {
+        // Skeleton Connectors
+        const HAND_CONNECTIONS = [
+          [0, 1], [1, 2], [2, 3], [3, 4],       // Thumb
+          [0, 5], [5, 6], [6, 7], [7, 8],       // Index
+          [5, 9], [9, 10], [10, 11], [11, 12],  // Middle
+          [9, 13], [13, 14], [14, 15], [15, 16], // Ring
+          [13, 17], [0, 17], [17, 18], [18, 19], [19, 20] // Pinky
+        ];
+
+        if (options.showSkeleton) {
           HAND_CONNECTIONS.forEach(([start, end]) => {
             const p1 = landmarks[start];
             const p2 = landmarks[end];
