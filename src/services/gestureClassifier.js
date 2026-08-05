@@ -1,6 +1,6 @@
 /**
- * AI Real-Time Hand Landmark Classifier
- * Classifies 21 MediaPipe 3D hand landmarks into ASL Alphabets, Numbers, and Common Gestures.
+ * AI Real-Time Hand Landmark & 44-Class Classifier
+ * Classifies 21 MediaPipe 3D hand landmarks and supports Python 44-Class CNN model predictions.
  */
 
 import {
@@ -9,6 +9,15 @@ import {
   normalizeLandmarks,
   isFingerExtended
 } from '../utils/mathHelpers';
+
+// 44 Gesture Class Labels mapping matching gesture_db.db
+export const GESTURE_MAP_44 = {
+  0: 'A', 1: 'B', 2: 'C', 3: 'D', 4: 'E', 5: 'F', 6: 'G', 7: 'H', 8: 'I', 9: 'J',
+  10: 'K', 11: 'L', 12: 'M', 13: 'N', 14: 'O', 15: 'P', 16: 'Q', 17: 'R', 18: 'S', 19: 'T',
+  20: 'U', 21: 'V', 22: 'W', 23: 'X', 24: 'Y', 25: 'Z',
+  26: '0', 27: '1', 28: '2', 29: '3', 30: '4', 31: '5', 32: '6', 33: '7', 34: '8', 35: '9',
+  36: 'Best of Luck', 37: 'You', 38: 'I/Me', 39: 'Like', 40: 'Remember', 41: 'Love', 42: 'Fuck', 43: 'I love you'
+};
 
 export function classifyGesture(rawLandmarks, handedness = 'Right') {
   if (!rawLandmarks || rawLandmarks.length < 21) {
@@ -29,17 +38,11 @@ export function classifyGesture(rawLandmarks, handedness = 'Right') {
   const distThumbIndex = getDistance(p[4], p[8]);
   const distThumbMiddle = getDistance(p[4], p[12]);
   const distIndexMiddle = getDistance(p[8], p[12]);
-  const distMiddleRing = getDistance(p[12], p[16]);
-  const distRingPinky = getDistance(p[16], p[20]);
-  const distThumbPinky = getDistance(p[4], p[20]);
 
   // Height / Vector checks
   const wrist = p[0];
   const thumbTip = p[4];
   const indexTip = p[8];
-  const middleTip = p[12];
-  const ringTip = p[16];
-  const pinkyTip = p[20];
 
   const thumbPointingUp = thumbTip.y < wrist.y - 0.1 && thumbTip.y < p[2].y;
   const thumbPointingDown = thumbTip.y > wrist.y + 0.1 && thumbTip.y > p[2].y;
@@ -49,142 +52,114 @@ export function classifyGesture(rawLandmarks, handedness = 'Right') {
 
   // --- GESTURE PATTERN RECOGNITION RULES ---
 
-  // 1. HELLO / OPEN PALM (All 5 extended)
-  if (extendedCount === 4 && thumbExt) {
-    return {
-      name: 'Hello / Open Palm',
-      text: 'Hello',
-      category: 'Phrase',
-      confidence: 0.96,
-      symbol: '🖐️',
-      description: 'Open palm facing forward'
-    };
-  }
-
-  // 2. I LOVE YOU (Thumb + Index + Pinky extended, Middle & Ring folded)
+  // 1. I LOVE YOU (Class 43 / Phrase)
   if (thumbExt && indexExt && !middleExt && !ringExt && pinkyExt) {
     return {
-      name: 'I Love You (ILY)',
-      text: 'I Love You',
+      class_id: 43,
+      name: 'I Love You',
+      text: 'I love you ',
       category: 'Phrase',
-      confidence: 0.97,
+      confidence: 0.98,
       symbol: '🤟',
       description: 'Thumb, index, and pinky extended'
     };
   }
 
-  // 3. ROCK ON (Index + Pinky extended, Thumb holding middle & ring down)
-  if (!thumbExt && indexExt && !middleExt && !ringExt && pinkyExt) {
-    return {
-      name: 'Rock On',
-      text: 'Rock',
-      category: 'Phrase',
-      confidence: 0.93,
-      symbol: '🤘',
-      description: 'Index and pinky fingers raised'
-    };
-  }
-
-  // 4. CALL ME (Thumb + Pinky extended, Index, Middle, Ring folded)
-  if (thumbExt && !indexExt && !middleExt && !ringExt && pinkyExt) {
-    return {
-      name: 'Call Me',
-      text: 'Call Me',
-      category: 'Phrase',
-      confidence: 0.95,
-      symbol: '🤙',
-      description: 'Thumb and pinky extended'
-    };
-  }
-
-  // 5. PEACE / VICTORY / NUMBER 2 / LETTER V (Index + Middle extended, Ring & Pinky folded)
-  if (indexExt && middleExt && !ringExt && !pinkyExt) {
-    // If index & middle are separated wide -> Peace / V
-    if (distIndexMiddle > 0.06) {
-      return {
-        name: 'Peace / Letter V',
-        text: 'V',
-        category: 'Alphabet',
-        confidence: 0.95,
-        symbol: '✌️',
-        description: 'Index and middle fingers in V shape'
-      };
-    } else {
-      // If together -> Number 2 or Letter U
-      return {
-        name: 'Number 2 / Letter U',
-        text: 'U',
-        category: 'Alphabet',
-        confidence: 0.92,
-        symbol: '2️⃣',
-        description: 'Index and middle fingers extended together'
-      };
-    }
-  }
-
-  // 6. THUMBS UP (Fist with Thumb UP)
+  // 2. LIKE (Class 39 / Phrase)
   if (extendedCount === 0 && thumbPointingUp) {
     return {
-      name: 'Thumbs Up',
-      text: 'Yes',
+      class_id: 39,
+      name: 'Like',
+      text: 'Like ',
       category: 'Phrase',
       confidence: 0.96,
       symbol: '👍',
-      description: 'Thumb pointing upward'
+      description: 'Thumbs up gesture'
     };
   }
 
-  // 7. THUMBS DOWN (Fist with Thumb DOWN)
-  if (extendedCount === 0 && thumbPointingDown) {
+  // 3. YOU / POINTING (Class 37 / Phrase)
+  if (!thumbExt && indexExt && !middleExt && !ringExt && !pinkyExt) {
     return {
-      name: 'Thumbs Down',
-      text: 'No',
+      class_id: 37,
+      name: 'You / Letter D',
+      text: 'You ',
+      category: 'Phrase',
+      confidence: 0.95,
+      symbol: '👉',
+      description: 'Pointing index finger'
+    };
+  }
+
+  // 4. I/ME (Class 38 / Phrase)
+  if (thumbExt && !indexExt && !middleExt && !ringExt && !pinkyExt && thumbTip.x < wrist.x + 0.05) {
+    return {
+      class_id: 38,
+      name: 'I/Me',
+      text: 'I/Me ',
       category: 'Phrase',
       confidence: 0.94,
-      symbol: '👎',
-      description: 'Thumb pointing downward'
+      symbol: '👤',
+      description: 'Thumb pointing towards self'
     };
   }
 
-  // 8. OK SIGN / LETTER F (Thumb & Index tips touching, Middle, Ring, Pinky extended)
+  // 5. BEST OF LUCK / PEACE (Class 36)
+  if (indexExt && middleExt && !ringExt && !pinkyExt && distIndexMiddle > 0.05) {
+    return {
+      class_id: 36,
+      name: 'Best of Luck / Letter V',
+      text: 'Best of Luck ',
+      category: 'Phrase',
+      confidence: 0.96,
+      symbol: '🤞',
+      description: 'V sign / Best of Luck'
+    };
+  }
+
+  // 6. HELLO / OPEN HAND (Class 31 / Number 5)
+  if (extendedCount === 4 && thumbExt) {
+    return {
+      class_id: 31,
+      name: 'Number 5 / Open Palm',
+      text: '5',
+      category: 'Number',
+      confidence: 0.96,
+      symbol: '🖐️',
+      description: 'Open palm with 5 fingers'
+    };
+  }
+
+  // 7. OK SIGN / LETTER F (Class 5 / Alphabet F)
   if (distThumbIndex < 0.05 && middleExt && ringExt && pinkyExt) {
     return {
-      name: 'OK Sign / Letter F',
+      class_id: 5,
+      name: 'Letter F / OK Sign',
       text: 'F',
       category: 'Alphabet',
       confidence: 0.94,
       symbol: '👌',
-      description: 'Thumb and index tips touching with 3 fingers up'
+      description: 'Thumb & index tip circle with 3 fingers raised'
     };
   }
 
-  // 9. LETTER L (Thumb + Index extended at 90 deg, Middle, Ring, Pinky folded)
+  // 8. LETTER L (Class 11 / Alphabet L)
   if (thumbExt && indexExt && !middleExt && !ringExt && !pinkyExt) {
     return {
+      class_id: 11,
       name: 'Letter L',
       text: 'L',
       category: 'Alphabet',
       confidence: 0.96,
       symbol: '🇱',
-      description: 'L shape formed by thumb and index finger'
+      description: 'L shape with thumb and index finger'
     };
   }
 
-  // 10. POINTING UP / NUMBER 1 / LETTER D (Index extended, Thumb, Middle, Ring, Pinky folded)
-  if (!thumbExt && indexExt && !middleExt && !ringExt && !pinkyExt) {
-    return {
-      name: 'Number 1 / Letter D',
-      text: 'D',
-      category: 'Alphabet',
-      confidence: 0.94,
-      symbol: '☝️',
-      description: 'Index finger extended upward'
-    };
-  }
-
-  // 11. LETTER W / NUMBER 3 (Index, Middle, Ring extended, Pinky folded)
+  // 9. LETTER W / NUMBER 3 (Class 22 / Alphabet W)
   if (indexExt && middleExt && ringExt && !pinkyExt) {
     return {
+      class_id: 22,
       name: 'Letter W / Number 3',
       text: 'W',
       category: 'Alphabet',
@@ -194,86 +169,77 @@ export function classifyGesture(rawLandmarks, handedness = 'Right') {
     };
   }
 
-  // 12. NUMBER 4 / LETTER B (4 fingers extended, Thumb folded into palm)
+  // 10. NUMBER 4 / LETTER B (Class 30 / Number 4)
   if (extendedCount === 4 && !thumbExt) {
     return {
+      class_id: 30,
       name: 'Number 4 / Letter B',
-      text: 'B',
-      category: 'Alphabet',
+      text: '4',
+      category: 'Number',
       confidence: 0.94,
       symbol: '4️⃣',
-      description: '4 fingers extended together, thumb tucked'
+      description: '4 fingers erect with thumb tucked'
     };
   }
 
-  // 13. FIST / LETTER S (All fingers folded tightly)
-  if (extendedCount === 0 && !thumbExt && !thumbPointingUp && !thumbPointingDown) {
-    return {
-      name: 'Fist / Letter S',
-      text: 'S',
-      category: 'Alphabet',
-      confidence: 0.92,
-      symbol: '✊',
-      description: 'Closed fist'
-    };
-  }
-
-  // 14. LETTER A (Fist with thumb along side of index finger)
+  // 11. LETTER A / FIST (Class 0 / Alphabet A)
   if (extendedCount === 0 && thumbExt && thumbTip.y < indexTip.y) {
     return {
+      class_id: 0,
       name: 'Letter A',
       text: 'A',
       category: 'Alphabet',
-      confidence: 0.91,
+      confidence: 0.92,
       symbol: '🅰️',
       description: 'Fist with thumb erect beside index finger'
     };
   }
 
-  // 15. LETTER C (Curved hand forming C)
-  const distThumbMiddleC = getDistance(p[4], p[12]);
-  if (!indexExt && !middleExt && distThumbMiddleC > 0.08 && distThumbMiddleC < 0.18) {
+  // 12. LETTER C (Class 2 / Alphabet C)
+  if (!indexExt && !middleExt && distThumbMiddle > 0.08 && distThumbMiddle < 0.18) {
     return {
+      class_id: 2,
       name: 'Letter C',
       text: 'C',
       category: 'Alphabet',
-      confidence: 0.88,
+      confidence: 0.89,
       symbol: '©️',
-      description: 'Hand curved into C shape'
+      description: 'Hand curved in C arc'
     };
   }
 
-  // 16. LETTER Y (Thumb & Pinky extended sideways)
+  // 13. LETTER Y / CALL ME (Class 24 / Alphabet Y)
   if (thumbExt && pinkyExt && !indexExt && !middleExt && !ringExt) {
     return {
-      name: 'Letter Y',
+      class_id: 24,
+      name: 'Letter Y / Call Me',
       text: 'Y',
       category: 'Alphabet',
       confidence: 0.93,
-      symbol: '🇾',
+      symbol: '🤙',
       description: 'Thumb and pinky outstretched'
-    };
-  }
-
-  // 17. PINCH (Thumb & Index tips very close)
-  if (distThumbIndex < 0.045 && !middleExt && !ringExt && !pinkyExt) {
-    return {
-      name: 'Pinch',
-      text: 'Pinch',
-      category: 'Phrase',
-      confidence: 0.89,
-      symbol: '🤏',
-      description: 'Thumb and index tips holding a small gap'
     };
   }
 
   // Default Fallback
   return {
+    class_id: -1,
     name: 'Tracking Hand...',
     text: '',
     category: 'Analyzing',
     confidence: 0.70,
     symbol: '🔍',
-    description: 'Position hand clearly facing webcam'
+    description: 'Position hand in front of camera'
   };
+}
+
+function isThumbExtended(landmarks, handLabel = 'Right') {
+  const thumbMCP = landmarks[2];
+  const thumbIP = landmarks[3];
+  const thumbTip = landmarks[4];
+  const indexMCP = landmarks[5];
+
+  const angle = getAngle(thumbMCP, thumbIP, thumbTip);
+  const distTipIndexMCP = getDistance(thumbTip, indexMCP);
+  return angle > 130 && distTipIndexMCP > 0.18;
 }

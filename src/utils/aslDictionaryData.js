@@ -1,209 +1,109 @@
 /**
- * Comprehensive Sign Language Reference Dictionary
+ * Comprehensive 44-Class Sign Language Reference Dictionary
+ * Matches gesture_db.db from Sign-Language dataset
  */
 
 export const GESTURE_DICTIONARY = [
-  // Common Signs / Phrases
-  {
-    id: "HELLO",
-    name: "Hello / Open Hand",
-    category: "Phrase",
-    description: "Open palm facing forward with all 5 fingers fully extended and spread slightly.",
-    handShape: "🖐️",
-    tips: "Keep palm flat towards camera with fingers erect.",
-    confidenceRequirement: "High"
-  },
-  {
-    id: "PEACE",
-    name: "Peace / Victory (V)",
-    category: "Phrase",
-    description: "Index and middle fingers extended upward forming a V, while thumb holds ring and pinky fingers down.",
-    handShape: "✌️",
-    tips: "Keep index and middle finger separated in V shape.",
-    confidenceRequirement: "High"
-  },
-  {
-    id: "THUMBS_UP",
-    name: "Thumbs Up (Like / Good / Yes)",
-    category: "Phrase",
-    description: "Fist closed with thumb pointing straight up into the air.",
-    handShape: "👍",
-    tips: "Extend thumb clearly upward above closed fingers.",
-    confidenceRequirement: "High"
-  },
-  {
-    id: "THUMBS_DOWN",
-    name: "Thumbs Down (Bad / No)",
-    category: "Phrase",
-    description: "Fist closed with thumb pointing straight down.",
-    handShape: "👎",
-    tips: "Point thumb downwards clearly below wrist line.",
-    confidenceRequirement: "High"
-  },
-  {
-    id: "I_LOVE_YOU",
-    name: "I Love You (ILY)",
-    category: "Phrase",
-    description: "Thumb, index finger, and pinky finger extended simultaneously. Middle and ring fingers folded into palm.",
-    handShape: "🤟",
-    tips: "Combines letters I, L, and Y into one universal sign.",
-    confidenceRequirement: "High"
-  },
-  {
-    id: "ROCK_ON",
-    name: "Rock On / Sign of Horns",
-    category: "Phrase",
-    description: "Index and pinky fingers extended upward. Thumb holding middle and ring fingers flat.",
-    handShape: "🤘",
-    tips: "Keep thumb pressed against middle & ring knuckles.",
-    confidenceRequirement: "Medium"
-  },
-  {
-    id: "OK_SIGN",
-    name: "OK Sign / Letter F",
-    category: "Phrase",
-    description: "Thumb tip and index finger tip touching to form a circle. Middle, ring, and pinky fingers extended straight.",
-    handShape: "👌",
-    tips: "Form a circle with thumb & index while keeping other 3 fingers raised.",
-    confidenceRequirement: "High"
-  },
-  {
-    id: "POINTING",
-    name: "Pointing Up / One / Letter D",
-    category: "Phrase",
-    description: "Index finger extended straight up. Thumb folded over middle, ring, and pinky fingers.",
-    handShape: "☝️",
-    tips: "Keep index finger pointing straight up towards ceiling.",
-    confidenceRequirement: "High"
-  },
-  {
-    id: "FIST",
-    name: "Fist / Power / Letter S",
-    category: "Phrase",
-    description: "All 5 fingers tightly curled into a solid fist with thumb tucked over index/middle fingers.",
-    handShape: "✊",
-    tips: "Make a tight fist facing camera.",
-    confidenceRequirement: "High"
-  },
-  {
-    id: "CALL_ME",
-    name: "Call Me / Phone / Letter Y",
-    category: "Phrase",
-    description: "Thumb and pinky fingers extended out sideways. Index, middle, and ring fingers folded down.",
-    handShape: "🤙",
-    tips: "Thumb points right/left while pinky points out.",
-    confidenceRequirement: "High"
-  },
-  {
-    id: "PINCH",
-    name: "Pinch / Little Bit",
-    category: "Phrase",
-    description: "Thumb tip and index tip close together with small space between them.",
-    handShape: "🤏",
-    tips: "Bring thumb and index tips within 1-2 cm of each other.",
-    confidenceRequirement: "Medium"
-  },
+  // Alphabets A-Z (ID 0 to 25)
+  ...Array.from({ length: 26 }, (_, i) => {
+    const letter = String.fromCharCode(65 + i);
+    return {
+      id: `ALPHABET_${letter}`,
+      class_id: i,
+      name: `Letter ${letter}`,
+      category: 'Alphabet',
+      description: `ASL Alphabet sign posture for letter '${letter}'.`,
+      handShape: letter,
+      tips: `Form gesture posture for ASL letter ${letter}.`,
+      confidenceRequirement: 'High'
+    };
+  }),
 
-  // ASL Numbers
-  {
-    id: "NUM_0",
-    name: "Number 0 / Letter O",
-    category: "Number",
-    description: "All finger tips curved to touch thumb tip, forming an 'O' shape.",
-    handShape: "0️⃣",
-    tips: "Form a rounded O ring with fingers and thumb.",
-    confidenceRequirement: "High"
-  },
-  {
-    id: "NUM_1",
-    name: "Number 1",
-    category: "Number",
-    description: "Index finger extended straight up, all other fingers closed into palm.",
-    handShape: "1️⃣",
-    tips: "Single index finger erect.",
-    confidenceRequirement: "High"
-  },
-  {
-    id: "NUM_2",
-    name: "Number 2",
-    category: "Number",
-    description: "Index and middle fingers extended up, remaining fingers folded.",
-    handShape: "2️⃣",
-    tips: "Similar to V sign.",
-    confidenceRequirement: "High"
-  },
-  {
-    id: "NUM_3",
-    name: "Number 3",
-    category: "Number",
-    description: "Thumb, index, and middle fingers extended out.",
-    handShape: "3️⃣",
-    tips: "Extend thumb along with index and middle fingers.",
-    confidenceRequirement: "High"
-  },
-  {
-    id: "NUM_4",
-    name: "Number 4",
-    category: "Number",
-    description: "4 fingers (Index, Middle, Ring, Pinky) extended straight up; thumb folded inside palm.",
-    handShape: "4️⃣",
-    tips: "Tuck thumb into palm, raise 4 fingers.",
-    confidenceRequirement: "High"
-  },
-  {
-    id: "NUM_5",
-    name: "Number 5",
-    category: "Number",
-    description: "All 5 fingers extended and spread wide.",
-    handShape: "5️⃣",
-    tips: "Open palm with all 5 digits extended.",
-    confidenceRequirement: "High"
-  },
+  // Numbers 0-9 (ID 26 to 35)
+  ...Array.from({ length: 10 }, (_, i) => {
+    return {
+      id: `NUM_${i}`,
+      class_id: 26 + i,
+      name: `Number ${i}`,
+      category: 'Number',
+      description: `Sign gesture for digit ${i}.`,
+      handShape: `${i}️⃣`,
+      tips: `Extend digits to represent number ${i}.`,
+      confidenceRequirement: 'High'
+    };
+  }),
 
-  // ASL Alphabet Key Highlights
+  // Key Phrases (ID 36 to 43)
   {
-    id: "ALPHABET_A",
-    name: "Letter A",
-    category: "Alphabet",
-    description: "Fist closed with thumb upright resting flat against the side of index finger.",
-    handShape: "🅰️",
-    tips: "Fist closed, thumb pointing up along side of index.",
-    confidenceRequirement: "High"
+    id: 'PHRASE_BEST_OF_LUCK',
+    class_id: 36,
+    name: 'Best of Luck',
+    category: 'Phrase',
+    description: 'Fingers crossed / thumbs up gesture indicating good luck wish.',
+    handShape: '🤞',
+    tips: 'Cross index and middle finger with palm facing front.',
+    confidenceRequirement: 'High'
   },
   {
-    id: "ALPHABET_B",
-    name: "Letter B",
-    category: "Alphabet",
-    description: "4 fingers extended straight up together; thumb tucked across palm.",
-    handShape: "🅱️",
-    tips: "Fingers held together straight up.",
-    confidenceRequirement: "High"
+    id: 'PHRASE_YOU',
+    class_id: 37,
+    name: 'You',
+    category: 'Phrase',
+    description: 'Index finger pointing forward towards recipient.',
+    handShape: '👉',
+    tips: 'Point index finger clearly forward.',
+    confidenceRequirement: 'High'
   },
   {
-    id: "ALPHABET_C",
-    name: "Letter C",
-    category: "Alphabet",
-    description: "Hand curved into a clear 'C' shape facing sideways.",
-    handShape: "©️",
-    tips: "Form arc with palm and thumb.",
-    confidenceRequirement: "High"
+    id: 'PHRASE_I_ME',
+    class_id: 38,
+    name: 'I / Me',
+    category: 'Phrase',
+    description: 'Index finger or fist pointing towards chest / self.',
+    handShape: '👤',
+    tips: 'Point finger towards chest area.',
+    confidenceRequirement: 'High'
   },
   {
-    id: "ALPHABET_L",
-    name: "Letter L",
-    category: "Alphabet",
-    description: "Thumb and index finger extended at right angles, forming an 'L'. Other fingers curled.",
-    handShape: "🇱",
-    tips: "Form clean L shape with index & thumb.",
-    confidenceRequirement: "High"
+    id: 'PHRASE_LIKE',
+    class_id: 39,
+    name: 'Like',
+    category: 'Phrase',
+    description: 'Thumb and middle finger touching near chest and pulling outwards.',
+    handShape: '👍',
+    tips: 'Pinch thumb & middle finger then extend out.',
+    confidenceRequirement: 'High'
   },
   {
-    id: "ALPHABET_W",
-    name: "Letter W",
-    category: "Alphabet",
-    description: "Index, middle, and ring fingers extended upward in W shape; thumb holds pinky down.",
-    handShape: "🇼",
-    tips: "Raise 3 middle fingers erect.",
-    confidenceRequirement: "High"
+    id: 'PHRASE_REMEMBER',
+    class_id: 40,
+    name: 'Remember',
+    class_id: 40,
+    name: 'Remember',
+    category: 'Phrase',
+    description: 'Thumb touching forehead then moving down to meet non-dominant thumb.',
+    handShape: '🧠',
+    tips: 'Touch temple area then bring thumb down.',
+    confidenceRequirement: 'High'
+  },
+  {
+    id: 'PHRASE_LOVE',
+    class_id: 41,
+    name: 'Love',
+    category: 'Phrase',
+    description: 'Both arms crossed over chest forming an X in front of heart.',
+    handShape: '❤️',
+    tips: 'Cross wrists or hands across chest.',
+    confidenceRequirement: 'High'
+  },
+  {
+    id: 'PHRASE_I_LOVE_YOU',
+    class_id: 43,
+    name: 'I Love You',
+    category: 'Phrase',
+    description: 'Thumb, index, and pinky extended simultaneously.',
+    handShape: '🤟',
+    tips: 'Combine letters I, L, and Y.',
+    confidenceRequirement: 'High'
   }
 ];

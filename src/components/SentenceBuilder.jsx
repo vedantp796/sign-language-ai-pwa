@@ -1,35 +1,80 @@
-import React, { useState } from 'react';
-import { Volume2, Copy, Delete, Trash2, Space, CloudUpload, Check } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Volume2, Copy, Delete, Trash2, Space, CloudUpload, Check, Calculator, Type, Monitor } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { speechService } from '../services/speechService';
 import { firebaseService } from '../services/firebaseService';
 
-export default function SentenceBuilder({ sentence, setSentence, currentPrediction }) {
+export default function SentenceBuilder({
+  sentence,
+  setSentence,
+  currentPrediction,
+  mode,
+  setMode,
+  isBlackboardView,
+  setIsBlackboardView
+}) {
   const [copied, setCopied] = useState(false);
   const [savedToFirebase, setSavedToFirebase] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
 
+  // Calculator Mode State
+  const [calcExpression, setCalcExpression] = useState('');
+  const [calcResult, setCalcResult] = useState('');
+
+  // Handle calculator sign inputs
+  useEffect(() => {
+    if (mode === 'calculator' && currentPrediction?.text) {
+      const txt = currentPrediction.text.trim();
+      const num = parseInt(txt);
+
+      if (!isNaN(num)) {
+        setCalcExpression(prev => prev + txt);
+      } else if (txt === 'C' || txt === 'Clear') {
+        setCalcExpression('');
+        setCalcResult('');
+      }
+    }
+  }, [currentPrediction, mode]);
+
+  const handleEvaluateCalc = () => {
+    try {
+      if (!calcExpression) return;
+      // Safe function evaluation matching python eval
+      const evalRes = Function(`"use strict"; return (${calcExpression})`)();
+      setCalcResult(String(evalRes));
+      speechService.speak(`${calcExpression} equals ${evalRes}`);
+    } catch (e) {
+      setCalcResult('Invalid Operation');
+      speechService.speak('Invalid Operation');
+    }
+  };
+
   const handleSpeak = () => {
-    if (!sentence || sentence.trim() === '') return;
+    const textToSpeak = mode === 'calculator' ? `${calcExpression} ${calcResult ? 'equals ' + calcResult : ''}` : sentence;
+    if (!textToSpeak || textToSpeak.trim() === '') return;
     setIsSpeaking(true);
-    speechService.speak(sentence, () => setIsSpeaking(false));
+    speechService.speak(textToSpeak, () => setIsSpeaking(false));
   };
 
   const handleCopy = () => {
-    if (!sentence) return;
-    navigator.clipboard.writeText(sentence);
+    const textToCopy = mode === 'calculator' ? `${calcExpression} = ${calcResult}` : sentence;
+    if (!textToCopy) return;
+    navigator.clipboard.writeText(textToCopy);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
   const handleBackspace = () => {
-    setSentence(prev => {
-      if (prev.length === 0) return '';
-      // If ends with space, remove space or last word
-      const words = prev.trimEnd().split(' ');
-      words.pop();
-      return words.join(' ');
-    });
+    if (mode === 'calculator') {
+      setCalcExpression(prev => prev.slice(0, -1));
+    } else {
+      setSentence(prev => {
+        if (prev.length === 0) return '';
+        const words = prev.trimEnd().split(' ');
+        words.pop();
+        return words.join(' ');
+      });
+    }
   };
 
   const handleAddSpace = () => {
@@ -37,16 +82,21 @@ export default function SentenceBuilder({ sentence, setSentence, currentPredicti
   };
 
   const handleClear = () => {
-    setSentence('');
+    if (mode === 'calculator') {
+      setCalcExpression('');
+      setCalcResult('');
+    } else {
+      setSentence('');
+    }
   };
 
   const handleSaveToFirestore = async () => {
-    if (!sentence || sentence.trim() === '') return;
+    const textToSave = mode === 'calculator' ? `${calcExpression} = ${calcResult}` : sentence;
+    if (!textToSave || textToSave.trim() === '') return;
     try {
-      await firebaseService.saveHistoryRecord(sentence.trim(), 1, currentPrediction?.name || 'Translated Sign');
+      await firebaseService.saveHistoryRecord(textToSave.trim(), 1, currentPrediction?.name || 'Recognized Gesture');
       setSavedToFirebase(true);
 
-      // Trigger Confetti Effect
       confetti({
         particleCount: 50,
         spread: 60,
@@ -60,49 +110,92 @@ export default function SentenceBuilder({ sentence, setSentence, currentPredicti
   };
 
   return (
-    <div className="sentence-builder-card glass-panel glow-border">
+    <div className={`sentence-builder-card glass-panel glow-border ${isBlackboardView ? 'blackboard-mode' : ''}`}>
       <div className="sentence-header">
         <div className="flex-align-center gap-2">
-          <span className="badge-live-pulse">TRANSCRIPT</span>
-          <h3 className="card-title">Translated Sentence Buffer</h3>
+          {/* Mode Selector */}
+          <div className="mode-toggle-group">
+            <button
+              className={`mode-btn ${mode === 'text' ? 'active' : ''}`}
+              onClick={() => setMode('text')}
+            >
+              <Type size={14} />
+              <span>Text Mode</span>
+            </button>
+
+            <button
+              className={`mode-btn ${mode === 'calculator' ? 'active' : ''}`}
+              onClick={() => setMode('calculator')}
+            >
+              <Calculator size={14} />
+              <span>Calculator Mode</span>
+            </button>
+          </div>
         </div>
+
         <div className="flex-align-center gap-2">
+          <button
+            className={`btn-action-sm ${isBlackboardView ? 'active' : ''}`}
+            onClick={() => setIsBlackboardView(!isBlackboardView)}
+            title="Toggle Blackboard View Style"
+          >
+            <Monitor size={14} />
+            <span>{isBlackboardView ? 'Normal View' : 'Blackboard View'}</span>
+          </button>
+
           <button
             className={`btn-action-sm ${savedToFirebase ? 'success' : 'primary'}`}
             onClick={handleSaveToFirestore}
-            disabled={!sentence.trim()}
+            disabled={mode === 'calculator' ? !calcExpression : !sentence.trim()}
           >
             {savedToFirebase ? <Check size={14} /> : <CloudUpload size={14} />}
-            <span>{savedToFirebase ? 'Saved to Firestore!' : 'Save to Firestore'}</span>
+            <span>{savedToFirebase ? 'Saved!' : 'Save Firestore'}</span>
           </button>
         </div>
       </div>
 
+      {/* Main Display Box */}
       <div className="sentence-display-box">
-        {sentence ? (
+        {mode === 'calculator' ? (
+          <div className="calculator-display">
+            <span className="calc-exp">{calcExpression || 'Perform number gestures to calculate...'}</span>
+            {calcResult && <span className="calc-res"> = {calcResult}</span>}
+          </div>
+        ) : sentence ? (
           <p className="sentence-text">{sentence}</p>
         ) : (
           <p className="sentence-placeholder">
-            Perform sign gestures facing the camera to build words & sentences...
+            Hold signs facing webcam (~20 frames) to auto-append characters & words...
           </p>
         )}
       </div>
 
+      {/* Toolbar Controls */}
       <div className="sentence-toolbar">
         <div className="left-controls">
           <button
             className={`btn-control speak ${isSpeaking ? 'speaking-pulse' : ''}`}
             onClick={handleSpeak}
-            disabled={!sentence.trim()}
+            disabled={mode === 'calculator' ? !calcExpression : !sentence.trim()}
           >
             <Volume2 size={18} />
             <span>{isSpeaking ? 'Speaking...' : 'Speak Text'}</span>
           </button>
 
+          {mode === 'calculator' && (
+            <button
+              className="btn-control primary"
+              onClick={handleEvaluateCalc}
+              disabled={!calcExpression}
+            >
+              <span>= Calculate</span>
+            </button>
+          )}
+
           <button
             className="btn-control copy"
             onClick={handleCopy}
-            disabled={!sentence.trim()}
+            disabled={mode === 'calculator' ? !calcExpression : !sentence.trim()}
           >
             {copied ? <Check size={18} /> : <Copy size={18} />}
             <span>{copied ? 'Copied!' : 'Copy'}</span>
@@ -110,11 +203,13 @@ export default function SentenceBuilder({ sentence, setSentence, currentPredicti
         </div>
 
         <div className="right-controls">
-          <button className="btn-control icon-only" onClick={handleAddSpace} title="Add Space">
-            <Space size={18} />
-          </button>
+          {mode === 'text' && (
+            <button className="btn-control icon-only" onClick={handleAddSpace} title="Add Space">
+              <Space size={18} />
+            </button>
+          )}
 
-          <button className="btn-control icon-only" onClick={handleBackspace} title="Delete Last Word">
+          <button className="btn-control icon-only" onClick={handleBackspace} title="Delete Last">
             <Delete size={18} />
           </button>
 

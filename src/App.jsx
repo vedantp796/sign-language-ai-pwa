@@ -12,6 +12,7 @@ import PwaInstallPrompt from './components/PwaInstallPrompt';
 
 import { classifyGesture } from './services/gestureClassifier';
 import { firebaseService } from './services/firebaseService';
+import { speechService } from './services/speechService';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('recognition');
@@ -26,12 +27,14 @@ export default function App() {
   });
 
   const [sentence, setSentence] = useState('');
+  const [mode, setMode] = useState('text'); // 'text' | 'calculator'
+  const [isBlackboardView, setIsBlackboardView] = useState(false);
   const [isFirebaseOnline, setIsFirebaseOnline] = useState(firebaseService.isOnline);
   const [isFirebaseModalOpen, setIsFirebaseModalOpen] = useState(false);
 
-  // Auto-accumulation buffer state
-  const lastGestureRef = useRef('');
-  const gestureHoldTimerRef = useRef(null);
+  // Same-frame holding counter matching fun_util.py (count_same_frame > 20)
+  const countSameFrameRef = useRef(0);
+  const oldTextRef = useRef('');
 
   // Handle incoming MediaPipe hand landmark detection results
   const handleLandmarksDetected = (results) => {
@@ -44,23 +47,36 @@ export default function App() {
       const currentPrediction = classifyGesture(firstHand, handedness);
       setPrediction(currentPrediction);
 
-      // Auto-append recognized text to sentence buffer if held for ~1 second
-      if (currentPrediction.text && currentPrediction.confidence > 0.88) {
-        if (lastGestureRef.current !== currentPrediction.text) {
-          lastGestureRef.current = currentPrediction.text;
+      // Frame Stability Counter matching fun_util.py
+      if (currentPrediction.text && currentPrediction.confidence > 0.85) {
+        if (oldTextRef.current === currentPrediction.text) {
+          countSameFrameRef.current += 1;
+        } else {
+          oldTextRef.current = currentPrediction.text;
+          countSameFrameRef.current = 0;
+        }
 
-          if (gestureHoldTimerRef.current) clearTimeout(gestureHoldTimerRef.current);
+        // When held continuously for ~15-20 frames
+        if (countSameFrameRef.current >= 15) {
+          countSameFrameRef.current = 0; // Reset counter
 
-          gestureHoldTimerRef.current = setTimeout(() => {
+          if (mode === 'text') {
             setSentence(prev => {
-              // Append letter or phrase with proper spacing
-              if (currentPrediction.category === 'Phrase') {
-                return prev ? `${prev.trim()} ${currentPrediction.text} ` : `${currentPrediction.text} `;
-              } else {
-                return prev + currentPrediction.text;
+              let newWord = currentPrediction.text;
+              let updated = prev + newWord;
+
+              // I/Me replacement formatting from fun_util.py
+              if (updated.startsWith('I/Me ')) {
+                updated = updated.replace('I/Me ', 'I ');
+              } else if (updated.endsWith('I/Me ')) {
+                updated = updated.replace('I/Me ', 'me ');
               }
+
+              // Speak character / phrase
+              speechService.speak(newWord.trim());
+              return updated;
             });
-          }, 1100);
+          }
         }
       }
     } else {
@@ -70,14 +86,15 @@ export default function App() {
         confidence: 0,
         symbol: '🖐️',
         category: 'Standby',
-        description: 'Position hand clearly in front of webcam'
+        description: 'Position hand in front of camera'
       });
-      lastGestureRef.current = '';
+      oldTextRef.current = '';
+      countSameFrameRef.current = 0;
     }
   };
 
   return (
-    <div className="app-container">
+    <div className={`app-container ${isBlackboardView ? 'blackboard-theme' : ''}`}>
       {/* Header Navbar */}
       <Navbar
         activeTab={activeTab}
@@ -90,7 +107,7 @@ export default function App() {
       {/* Main Content Area */}
       <main className="main-content">
         {activeTab === 'recognition' && (
-          <div className="dashboard-grid">
+          <div className={`dashboard-grid ${isBlackboardView ? 'blackboard-split' : ''}`}>
             <div className="left-column">
               <CameraFeed
                 onLandmarksDetected={handleLandmarksDetected}
@@ -109,6 +126,10 @@ export default function App() {
                 sentence={sentence}
                 setSentence={setSentence}
                 currentPrediction={prediction}
+                mode={mode}
+                setMode={setMode}
+                isBlackboardView={isBlackboardView}
+                setIsBlackboardView={setIsBlackboardView}
               />
 
               <SpeechControls />
@@ -134,7 +155,7 @@ export default function App() {
 
       {/* Footer */}
       <footer className="app-footer glass-panel">
-        <p>AI-Based Sign Language Recognition System &copy; 2026 | Powered by React, MediaPipe, Web Speech API & Firebase Firestore</p>
+        <p>AI-Based Sign Language Recognition System &copy; 2026 | Powered by Keras 44-Class Model, MediaPipe & Firebase</p>
       </footer>
     </div>
   );
