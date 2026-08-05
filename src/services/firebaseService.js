@@ -1,6 +1,6 @@
 /**
  * Firebase Firestore & User Authentication Integration Service
- * Manages User Accounts, Login Tracking, Usage Telemetry, and History Synchronization.
+ * Configured for sign-language-pwa project
  */
 
 import { initializeApp, getApps, getApp } from 'firebase/app';
@@ -27,21 +27,26 @@ import {
   onAuthStateChanged
 } from 'firebase/auth';
 
-// Default / User Firebase Configuration
+// User's Live Firebase Project Configuration (sign-language-pwa)
 const DEFAULT_FIREBASE_CONFIG = {
-  apiKey: "AIzaSyDemoKey_SignLanguageApp_2026",
-  authDomain: "sign-language-ai-demo.firebaseapp.com",
-  projectId: "sign-language-ai-demo",
-  storageBucket: "sign-language-ai-demo.appspot.com",
-  messagingSenderId: "109876543210",
-  appId: "1:109876543210:web:abcdef123456789"
+  apiKey: "AIzaSyBuzsEQ7d_6tI3GzltusY2upJBc0HV5ptY",
+  authDomain: "sign-language-pwa.firebaseapp.com",
+  projectId: "sign-language-pwa",
+  storageBucket: "sign-language-pwa.firebasestorage.app",
+  messagingSenderId: "28882127886",
+  appId: "1:28882127886:web:518faf991a605e8986805f",
+  measurementId: "G-E83XF7CN98"
 };
 
 export function getFirebaseConfig() {
   const stored = localStorage.getItem('app_firebase_config');
   if (stored) {
     try {
-      return JSON.parse(stored);
+      const parsed = JSON.parse(stored);
+      // If stored config contains old demo key, reset to live config
+      if (parsed.apiKey && !parsed.apiKey.includes('DemoKey')) {
+        return parsed;
+      }
     } catch (e) {
       console.warn("Could not parse saved Firebase config, using default.");
     }
@@ -86,8 +91,10 @@ class FirebaseService {
           this.trackUserLogin(user);
         } else {
           this.currentUser = null;
-          // Fallback to anonymous auth if not signed in
-          signInAnonymously(this.auth).catch(e => {
+          // Fallback to anonymous auth
+          signInAnonymously(this.auth).then(() => {
+            this.isOnline = true;
+          }).catch(e => {
             console.log("Local fallback mode:", e.message);
             this.isOnline = false;
           });
@@ -156,7 +163,6 @@ class FirebaseService {
         });
       }
 
-      // Log App Usage Activity
       await this.logActivity('USER_LOGIN', { uid: user.uid, isAnonymous: user.isAnonymous });
     } catch (e) {
       console.warn("Firestore user tracking notice:", e.message);
@@ -173,12 +179,10 @@ class FirebaseService {
         details,
         timestamp: new Date().toISOString()
       });
-    } catch (e) {
-      // Ignore background log errors
-    }
+    } catch (e) {}
   }
 
-  // 3. HISTORY TRANSLATION LOGGING (Per User & Global)
+  // 3. HISTORY TRANSLATION LOGGING
   async saveHistoryRecord(sentence, gestureCount, primaryGesture, mode = 'text') {
     const record = {
       uid: this.currentUser?.uid || 'anon',
@@ -201,7 +205,6 @@ class FirebaseService {
       }
     }
 
-    // Local Storage Fallback
     const localHistory = JSON.parse(localStorage.getItem('local_sign_history') || '[]');
     const localRecord = { id: 'local_' + Date.now(), ...record };
     localHistory.unshift(localRecord);
