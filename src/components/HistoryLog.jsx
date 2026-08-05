@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { History, Trash2, Volume2, Download, RefreshCw, Database, Search } from 'lucide-react';
+import { History, Trash2, Volume2, Download, RefreshCw, Database, Search, User } from 'lucide-react';
 import { firebaseService } from '../services/firebaseService';
 import { speechService } from '../services/speechService';
 
@@ -52,7 +52,8 @@ export default function HistoryLog() {
 
   const filteredHistory = history.filter(item =>
     (item.sentence || '').toLowerCase().includes(filterText.toLowerCase()) ||
-    (item.primaryGesture || '').toLowerCase().includes(filterText.toLowerCase())
+    (item.primaryGesture || '').toLowerCase().includes(filterText.toLowerCase()) ||
+    (item.userEmail || '').toLowerCase().includes(filterText.toLowerCase())
   );
 
   return (
@@ -62,8 +63,8 @@ export default function HistoryLog() {
           <div className="flex-align-center gap-2">
             <Database size={24} className="cyan-icon" />
             <div>
-              <h2 className="section-title">Firebase Firestore History Logs</h2>
-              <p className="section-subtitle">Saved sign language translation records & cloud sync</p>
+              <h2 className="section-title">Firebase Firestore History & User Tracking</h2>
+              <p className="section-subtitle">Real-time sentence logs, mode metrics, and account tracking</p>
             </div>
           </div>
 
@@ -90,7 +91,7 @@ export default function HistoryLog() {
             <Search size={18} className="search-icon" />
             <input
               type="text"
-              placeholder="Filter history records..."
+              placeholder="Search user, sentence, gesture..."
               value={filterText}
               onChange={(e) => setFilterText(e.target.value)}
               className="search-input"
@@ -103,20 +104,23 @@ export default function HistoryLog() {
         {loading ? (
           <div className="history-empty-state">
             <RefreshCw size={36} className="spin cyan-icon" />
-            <p>Loading Firestore records...</p>
+            <p>Loading Firestore tracking records...</p>
           </div>
         ) : filteredHistory.length === 0 ? (
           <div className="history-empty-state glass-panel">
             <History size={48} className="gray-icon" />
             <h3>No Recognition History Found</h3>
-            <p>Save translated sentences from the Live Translation tab to store them in Firebase Firestore.</p>
+            <p>Save translated sentences from the app to log user activity into Firebase Firestore.</p>
           </div>
         ) : (
           <div className="history-grid">
             {filteredHistory.map((item) => (
               <div key={item.id} className="history-card glass-panel glow-hover">
                 <div className="history-card-header">
-                  <span className="history-badge">{item.primaryGesture || 'Sign Log'}</span>
+                  <span className="history-badge">
+                    <User size={12} style={{ display: 'inline', marginRight: '4px' }} />
+                    {item.userEmail || 'Guest User'}
+                  </span>
                   <span className="history-time">
                     {item.timestamp ? new Date(item.timestamp).toLocaleString() : 'Recent'}
                   </span>
@@ -124,6 +128,10 @@ export default function HistoryLog() {
 
                 <div className="history-card-body">
                   <p className="history-sentence">"{item.sentence}"</p>
+                  <div className="flex-between mt-2">
+                    <span className="metric-tag">{item.primaryGesture || 'Sign'}</span>
+                    <span className="metric-tag blue">{item.mode || 'Text'} Mode</span>
+                  </div>
                 </div>
 
                 <div className="history-card-footer">

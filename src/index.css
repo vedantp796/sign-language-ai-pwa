@@ -1249,3 +1249,66 @@ body {
   font-family: monospace;
   font-size: 1.5rem;
 }
+
+/* Firebase Auth Modal Styles */
+.modal-subtabs {
+  display: flex;
+  gap: 10px;
+  border-bottom: 1px solid var(--border-glass);
+  padding-bottom: 10px;
+}
+
+.subtab-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-glass);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.subtab-btn.active {
+  background: rgba(0, 242, 254, 0.15);
+  border-color: var(--accent-cyan);
+  color: var(--accent-cyan);
+  font-weight: 700;
+}
+
+.auth-alert {
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  margin-top: 10px;
+}
+
+.auth-alert.error { background: rgba(255, 0, 127, 0.15); color: var(--accent-pink); border: 1px solid rgba(255, 0, 127, 0.3); }
+.auth-alert.success { background: rgba(0, 230, 118, 0.15); color: var(--accent-green); border: 1px solid rgba(0, 230, 118, 0.3); }
+
+.user-profile-card {
+  padding: 16px;
+}
+
+.user-email {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--accent-cyan);
+}
+
+.user-uid {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  font-family: monospace;
+}
+
+.badge-online {
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: rgba(0, 230, 118, 0.2);
+  color: var(--accent-green);
+  font-size: 0.72rem;
+  font-weight: 700;
+}

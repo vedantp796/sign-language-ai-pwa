@@ -1,6 +1,6 @@
 /**
- * Firebase Firestore & Database Integration Service
- * Stores sign language recognition history logs, saved sentences, and custom gesture datasets.
+ * Firebase Firestore & User Authentication Integration Service
+ * Manages User Accounts, Login Tracking, Usage Telemetry, and History Synchronization.
  */
 
 import { initializeApp, getApps, getApp } from 'firebase/app';
@@ -11,12 +11,21 @@ import {
   getDocs,
   deleteDoc,
   doc,
+  setDoc,
+  getDoc,
   query,
   orderBy,
   limit,
   serverTimestamp
 } from 'firebase/firestore';
-import { getAuth, signInAnonymously } from 'firebase/auth';
+import {
+  getAuth,
+  signInAnonymously,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged
+} from 'firebase/auth';
 
 // Default / User Firebase Configuration
 const DEFAULT_FIREBASE_CONFIG = {
@@ -50,6 +59,7 @@ class FirebaseService {
     this.app = null;
     this.db = null;
     this.auth = null;
+    this.currentUser = null;
     this.isConfigured = false;
     this.isOnline = false;
     this.initFirebase();
@@ -68,16 +78,21 @@ class FirebaseService {
       this.auth = getAuth(this.app);
       this.isConfigured = true;
 
-      // Attempt anonymous sign-in
-      signInAnonymously(this.auth)
-        .then(() => {
+      // Auth Listener
+      onAuthStateChanged(this.auth, (user) => {
+        if (user) {
+          this.currentUser = user;
           this.isOnline = true;
-          console.log("Firebase Auth & Firestore Connected Successfully.");
-        })
-        .catch(err => {
-          console.log("Firebase running in Local Demo Mode:", err.message);
-          this.isOnline = false;
-        });
+          this.trackUserLogin(user);
+        } else {
+          this.currentUser = null;
+          // Fallback to anonymous auth if not signed in
+          signInAnonymously(this.auth).catch(e => {
+            console.log("Local fallback mode:", e.message);
+            this.isOnline = false;
+          });
+        }
+      });
     } catch (e) {
       console.warn("Firebase initialization notice:", e.message);
       this.isConfigured = false;
@@ -85,12 +100,93 @@ class FirebaseService {
     }
   }
 
-  // Save a recognized sentence / history entry to Firestore (or localStorage fallback)
-  async saveHistoryRecord(sentence, gestureCount, primaryGesture) {
+  // 1. USER AUTHENTICATION METHODS
+  async registerUser(email, password, displayName = 'Sign User') {
+    if (!this.auth) return { error: 'Firebase Auth not initialized' };
+    try {
+      const cred = await createUserWithEmailAndPassword(this.auth, email, password);
+      await this.trackUserLogin(cred.user, displayName);
+      return { user: cred.user };
+    } catch (err) {
+      return { error: err.message };
+    }
+  }
+
+  async loginUser(email, password) {
+    if (!this.auth) return { error: 'Firebase Auth not initialized' };
+    try {
+      const cred = await signInWithEmailAndPassword(this.auth, email, password);
+      await this.trackUserLogin(cred.user);
+      return { user: cred.user };
+    } catch (err) {
+      return { error: err.message };
+    }
+  }
+
+  async logoutUser() {
+    if (this.auth) {
+      await signOut(this.auth);
+    }
+  }
+
+  // 2. TRACK USER & USAGE TELEMETRY IN FIRESTORE
+  async trackUserLogin(user, displayName = null) {
+    if (!this.db || !user) return;
+    const userRef = doc(this.db, 'users', user.uid);
+    try {
+      const snap = await getDoc(userRef);
+      const nowStr = new Date().toISOString();
+
+      if (snap.exists()) {
+        await setDoc(userRef, {
+          lastLoginAt: nowStr,
+          loginCount: (snap.data().loginCount || 1) + 1,
+          updatedAt: serverTimestamp ? serverTimestamp() : nowStr
+        }, { merge: true });
+      } else {
+        await setDoc(userRef, {
+          uid: user.uid,
+          email: user.email || 'Anonymous Guest',
+          isAnonymous: user.isAnonymous,
+          displayName: displayName || (user.isAnonymous ? 'Guest User' : user.email.split('@')[0]),
+          createdAt: nowStr,
+          lastLoginAt: nowStr,
+          loginCount: 1,
+          deviceOS: navigator.platform || 'Unknown'
+        });
+      }
+
+      // Log App Usage Activity
+      await this.logActivity('USER_LOGIN', { uid: user.uid, isAnonymous: user.isAnonymous });
+    } catch (e) {
+      console.warn("Firestore user tracking notice:", e.message);
+    }
+  }
+
+  async logActivity(action, details = {}) {
+    if (!this.db) return;
+    try {
+      await addDoc(collection(this.db, 'app_activity_logs'), {
+        action,
+        uid: this.currentUser?.uid || 'anon',
+        userEmail: this.currentUser?.email || 'Guest',
+        details,
+        timestamp: new Date().toISOString()
+      });
+    } catch (e) {
+      // Ignore background log errors
+    }
+  }
+
+  // 3. HISTORY TRANSLATION LOGGING (Per User & Global)
+  async saveHistoryRecord(sentence, gestureCount, primaryGesture, mode = 'text') {
     const record = {
+      uid: this.currentUser?.uid || 'anon',
+      userEmail: this.currentUser?.email || 'Guest User',
       sentence,
       gestureCount: gestureCount || 1,
       primaryGesture: primaryGesture || 'Mixed',
+      mode: mode || 'text',
       timestamp: new Date().toISOString(),
       createdAt: serverTimestamp ? serverTimestamp() : new Date().toISOString()
     };
@@ -98,9 +194,10 @@ class FirebaseService {
     if (this.isConfigured && this.isOnline) {
       try {
         const docRef = await addDoc(collection(this.db, 'sign_language_history'), record);
+        await this.logActivity('SENTENCE_TRANSLATED', { sentence, mode });
         return { id: docRef.id, ...record };
       } catch (err) {
-        console.warn("Firestore write failed, falling back to local storage:", err.message);
+        console.warn("Firestore write failed, using local fallback:", err.message);
       }
     }
 
@@ -112,14 +209,13 @@ class FirebaseService {
     return localRecord;
   }
 
-  // Load history records from Firestore (or localStorage)
   async fetchHistoryRecords() {
     if (this.isConfigured && this.isOnline) {
       try {
         const q = query(
           collection(this.db, 'sign_language_history'),
           orderBy('createdAt', 'desc'),
-          limit(30)
+          limit(40)
         );
         const querySnapshot = await getDocs(q);
         const docs = [];
@@ -128,22 +224,20 @@ class FirebaseService {
         });
         if (docs.length > 0) return docs;
       } catch (err) {
-        console.warn("Firestore fetch error, reading local fallback:", err.message);
+        console.warn("Firestore fetch notice:", err.message);
       }
     }
 
-    // Local Storage Fallback
     const localHistory = JSON.parse(localStorage.getItem('local_sign_history') || '[]');
     return localHistory;
   }
 
-  // Delete history item
   async deleteHistoryRecord(id) {
     if (this.isConfigured && this.isOnline && !id.startsWith('local_')) {
       try {
         await deleteDoc(doc(this.db, 'sign_language_history', id));
       } catch (e) {
-        console.warn("Firestore delete failed:", e.message);
+        console.warn("Firestore delete notice:", e.message);
       }
     }
 
@@ -152,14 +246,13 @@ class FirebaseService {
     localStorage.setItem('local_sign_history', JSON.stringify(filtered));
   }
 
-  // Clear all history
   async clearAllHistory() {
     localStorage.removeItem('local_sign_history');
   }
 
-  // Save Custom Gesture Landmark Dataset
   async saveCustomGesture(name, landmarkData) {
     const record = {
+      uid: this.currentUser?.uid || 'anon',
       name,
       landmarks: landmarkData,
       timestamp: new Date().toISOString()
@@ -168,9 +261,7 @@ class FirebaseService {
     if (this.isConfigured && this.isOnline) {
       try {
         await addDoc(collection(this.db, 'custom_gestures'), record);
-      } catch (e) {
-        console.warn("Firestore custom gesture save failed:", e.message);
-      }
+      } catch (e) {}
     }
 
     const localCustom = JSON.parse(localStorage.getItem('local_custom_gestures') || '[]');
@@ -178,7 +269,6 @@ class FirebaseService {
     localStorage.setItem('local_custom_gestures', JSON.stringify(localCustom));
   }
 
-  // Fetch Custom Gestures
   async fetchCustomGestures() {
     const localCustom = JSON.parse(localStorage.getItem('local_custom_gestures') || '[]');
     return localCustom;
