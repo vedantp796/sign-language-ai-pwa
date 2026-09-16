@@ -1312,3 +1312,188 @@ body {
   font-size: 0.72rem;
   font-weight: 700;
 }
+
+/* ==========================================================================
+   GESTURE TARGET RECOGNITION MODE SELECTOR TABS
+   ========================================================================== */
+.recognition-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.gesture-mode-bar {
+  padding: 16px 20px;
+  margin-bottom: 4px;
+}
+
+.mode-bar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.mode-bar-title {
+  font-family: var(--font-heading);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-main);
+  letter-spacing: 0.02em;
+}
+
+.mode-hint-badge {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.04);
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-glass);
+}
+
+.mode-tabs-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+
+@media (max-width: 900px) {
+  .mode-tabs-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 500px) {
+  .mode-tabs-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.mode-tab-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-glass);
+  color: var(--text-muted);
+  cursor: pointer;
+  text-align: left;
+  transition: var(--transition-fast);
+}
+
+.mode-tab-card:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+}
+
+.mode-tab-card.active {
+  background: rgba(15, 23, 42, 0.9);
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+}
+
+.mode-tab-card.active.cyan {
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 15px rgba(0, 242, 254, 0.25);
+}
+
+.mode-tab-card.active.green {
+  border-color: var(--accent-green);
+  box-shadow: 0 0 15px rgba(0, 230, 118, 0.25);
+}
+
+.mode-tab-card.active.pink {
+  border-color: var(--accent-pink);
+  box-shadow: 0 0 15px rgba(255, 0, 127, 0.25);
+}
+
+.mode-tab-card.active.purple {
+  border-color: var(--accent-purple);
+  box-shadow: 0 0 15px rgba(127, 0, 255, 0.25);
+}
+
+.tab-icon-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mode-symbol {
+  font-size: 1.4rem;
+}
+
+.mode-count-tag {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-muted);
+}
+
+.mode-tab-card.active .mode-count-tag {
+  background: rgba(0, 242, 254, 0.2);
+  color: var(--accent-cyan);
+}
+
+.tab-text-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tab-label-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tab-icon {
+  color: var(--text-muted);
+}
+
+.mode-tab-card.active .tab-icon {
+  color: var(--accent-cyan);
+}
+
+.tab-label {
+  font-family: var(--font-heading);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.tab-subtitle {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.active-indicator-dot {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-cyan);
+  box-shadow: 0 0 8px var(--accent-cyan);
+}
+
+.badge-mode-active {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  background: rgba(0, 242, 254, 0.15);
+  color: var(--accent-cyan);
+  border: 1px solid var(--accent-cyan);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+

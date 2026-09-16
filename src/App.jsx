@@ -9,6 +9,7 @@ import HistoryLog from './components/HistoryLog';
 import CustomGestureStudio from './components/CustomGestureStudio';
 import FirebaseModal from './components/FirebaseModal';
 import PwaInstallPrompt from './components/PwaInstallPrompt';
+import GestureModeSelector from './components/GestureModeSelector';
 
 import { classifyGesture } from './services/gestureClassifier';
 import { firebaseService } from './services/firebaseService';
@@ -18,6 +19,11 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('recognition');
   const [isCameraActive, setIsCameraActive] = useState(true);
   const [rawResults, setRawResults] = useState(null);
+
+  // Gesture Recognition Target Mode State ('alphabets' | 'numbers' | 'phrases' | 'all')
+  const [gestureMode, setGestureMode] = useState('alphabets');
+  const gestureModeRef = useRef('alphabets');
+
   const [prediction, setPrediction] = useState({
     name: 'Searching...',
     text: '',
@@ -36,6 +42,18 @@ export default function App() {
   const countSameFrameRef = useRef(0);
   const oldTextRef = useRef('');
 
+  // Handle setting recognition target mode & sync with ref for real-time video loop
+  const handleSetGestureMode = (newMode) => {
+    setGestureMode(newMode);
+    gestureModeRef.current = newMode;
+
+    if (newMode === 'numbers') {
+      setMode('calculator');
+    } else if (newMode === 'alphabets') {
+      setMode('text');
+    }
+  };
+
   // Handle incoming MediaPipe hand landmark detection results (Tasks Vision & Legacy)
   const handleLandmarksDetected = (results) => {
     setRawResults(results);
@@ -46,7 +64,8 @@ export default function App() {
       const firstHand = landmarksList[0];
       const handedness = results?.handednesses?.[0]?.[0]?.displayName || results?.multiHandedness?.[0]?.label || 'Right';
 
-      const currentPrediction = classifyGesture(firstHand, handedness);
+      // Always pass the latest gestureModeRef value to avoid stale closures
+      const currentPrediction = classifyGesture(firstHand, handedness, gestureModeRef.current);
       setPrediction(currentPrediction);
 
       // Frame Stability Counter matching fun_util.py
@@ -109,32 +128,42 @@ export default function App() {
       {/* Main Content Area */}
       <main className="main-content">
         {activeTab === 'recognition' && (
-          <div className={`dashboard-grid ${isBlackboardView ? 'blackboard-split' : ''}`}>
-            <div className="left-column">
-              <CameraFeed
-                onLandmarksDetected={handleLandmarksDetected}
-                isCameraActive={isCameraActive}
-                setIsCameraActive={setIsCameraActive}
-              />
-            </div>
+          <div className="recognition-workspace">
+            {/* Separate Recognition Target Mode Tabs (Alphabets / Numbers / Phrases / All) */}
+            <GestureModeSelector
+              gestureMode={gestureMode}
+              setGestureMode={handleSetGestureMode}
+            />
 
-            <div className="right-column">
-              <PredictionDisplay
-                prediction={prediction}
-                rawHandedness={rawResults?.handednesses?.[0]?.[0]?.displayName || rawResults?.multiHandedness?.[0]?.label}
-              />
+            {/* Main Recognition Dashboard Grid */}
+            <div className={`dashboard-grid ${isBlackboardView ? 'blackboard-split' : ''}`}>
+              <div className="left-column">
+                <CameraFeed
+                  onLandmarksDetected={handleLandmarksDetected}
+                  isCameraActive={isCameraActive}
+                  setIsCameraActive={setIsCameraActive}
+                />
+              </div>
 
-              <SentenceBuilder
-                sentence={sentence}
-                setSentence={setSentence}
-                currentPrediction={prediction}
-                mode={mode}
-                setMode={setMode}
-                isBlackboardView={isBlackboardView}
-                setIsBlackboardView={setIsBlackboardView}
-              />
+              <div className="right-column">
+                <PredictionDisplay
+                  prediction={prediction}
+                  rawHandedness={rawResults?.handednesses?.[0]?.[0]?.displayName || rawResults?.multiHandedness?.[0]?.label}
+                  gestureMode={gestureMode}
+                />
 
-              <SpeechControls />
+                <SentenceBuilder
+                  sentence={sentence}
+                  setSentence={setSentence}
+                  currentPrediction={prediction}
+                  mode={mode}
+                  setMode={setMode}
+                  isBlackboardView={isBlackboardView}
+                  setIsBlackboardView={setIsBlackboardView}
+                />
+
+                <SpeechControls />
+              </div>
             </div>
           </div>
         )}
