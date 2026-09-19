@@ -641,6 +641,34 @@ function classifyPhrases({
     };
   }
 
+  // 8. Space Bar Gesture (⎵) - Flat hand held horizontally
+  if (extendedCount === 4 && thumbExt && Math.abs(norm[8].x - norm[0].x) > 0.50) {
+    return {
+      class_id: 100,
+      name: 'Space Bar Gesture',
+      text: ' ',
+      action: 'SPACE',
+      category: 'Control',
+      confidence: 0.97,
+      symbol: '⎵',
+      description: 'Flat open palm held horizontally to insert space'
+    };
+  }
+
+  // 9. Delete / Backspace Gesture (⌫) - Pinch thumb & index with other fingers folded
+  if (distThumbIndex < 0.22 && !middleExt && !ringExt && !pinkyExt) {
+    return {
+      class_id: 101,
+      name: 'Delete / Backspace',
+      text: '',
+      action: 'DELETE',
+      category: 'Control',
+      confidence: 0.96,
+      symbol: '⌫',
+      description: 'Pinch thumb and index together to delete last character'
+    };
+  }
+
   return {
     class_id: -1,
     name: 'Analyzing Phrase...',
@@ -651,3 +679,4 @@ function classifyPhrases({
     description: 'Perform common sign gesture'
   };
 }
+

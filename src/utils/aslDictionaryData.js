@@ -1,9 +1,31 @@
 /**
- * Comprehensive 44-Class Sign Language Reference Dictionary
- * Matches gesture_db.db from Sign-Language dataset
+ * Comprehensive 50+ Class Sign Language Reference Dictionary
+ * Synthesized from RP datasets (ASL 44-Class, Kaggle Alphabet Controls, and Action Gestures)
  */
 
 export const GESTURE_DICTIONARY = [
+  // Control Gestures (Space, Delete)
+  {
+    id: 'CONTROL_SPACE',
+    class_id: 100,
+    name: 'Space Bar',
+    category: 'Control',
+    description: 'Flat open palm held horizontally to insert a space between words.',
+    handShape: '⎵',
+    tips: 'Hold flat hand horizontally facing camera to trigger word space.',
+    confidenceRequirement: 'High'
+  },
+  {
+    id: 'CONTROL_DELETE',
+    class_id: 101,
+    name: 'Delete / Backspace',
+    category: 'Control',
+    description: 'Pinch gesture with thumb and index tip touching to delete last character.',
+    handShape: '⌫',
+    tips: 'Pinch thumb and index finger together to delete previous character.',
+    confidenceRequirement: 'High'
+  },
+
   // Alphabets A-Z (ID 0 to 25)
   ...Array.from({ length: 26 }, (_, i) => {
     const letter = String.fromCharCode(65 + i);
@@ -33,13 +55,13 @@ export const GESTURE_DICTIONARY = [
     };
   }),
 
-  // Key Phrases (ID 36 to 43)
+  // Key Phrases & Action Gestures (ID 36 to 45)
   {
     id: 'PHRASE_BEST_OF_LUCK',
     class_id: 36,
     name: 'Best of Luck',
     category: 'Phrase',
-    description: 'Fingers crossed / thumbs up gesture indicating good luck wish.',
+    description: 'Fingers crossed / peace gesture indicating good luck wish.',
     handShape: '🤞',
     tips: 'Cross index and middle finger with palm facing front.',
     confidenceRequirement: 'High'
@@ -59,7 +81,7 @@ export const GESTURE_DICTIONARY = [
     class_id: 38,
     name: 'I / Me',
     category: 'Phrase',
-    description: 'Index finger or fist pointing towards chest / self.',
+    description: 'Index finger or thumb pointing towards chest / self.',
     handShape: '👤',
     tips: 'Point finger towards chest area.',
     confidenceRequirement: 'High'
@@ -67,21 +89,29 @@ export const GESTURE_DICTIONARY = [
   {
     id: 'PHRASE_LIKE',
     class_id: 39,
-    name: 'Like',
+    name: 'Like / Thumbs Up',
     category: 'Phrase',
-    description: 'Thumb and middle finger touching near chest and pulling outwards.',
+    description: 'Fist with thumb pointing straight up.',
     handShape: '👍',
-    tips: 'Pinch thumb & middle finger then extend out.',
+    tips: 'Raise thumb straight up.',
+    confidenceRequirement: 'High'
+  },
+  {
+    id: 'PHRASE_DISLIKE',
+    class_id: 42,
+    name: 'Dislike / Thumbs Down',
+    category: 'Phrase',
+    description: 'Fist with thumb pointing straight down.',
+    handShape: '👎',
+    tips: 'Point thumb straight down.',
     confidenceRequirement: 'High'
   },
   {
     id: 'PHRASE_REMEMBER',
     class_id: 40,
     name: 'Remember',
-    class_id: 40,
-    name: 'Remember',
     category: 'Phrase',
-    description: 'Thumb touching forehead then moving down to meet non-dominant thumb.',
+    description: 'Thumb touching temple area then moving down.',
     handShape: '🧠',
     tips: 'Touch temple area then bring thumb down.',
     confidenceRequirement: 'High'
@@ -91,7 +121,7 @@ export const GESTURE_DICTIONARY = [
     class_id: 41,
     name: 'Love',
     category: 'Phrase',
-    description: 'Both arms crossed over chest forming an X in front of heart.',
+    description: 'Both arms or hands crossed over chest forming an X in front of heart.',
     handShape: '❤️',
     tips: 'Cross wrists or hands across chest.',
     confidenceRequirement: 'High'
@@ -104,6 +134,36 @@ export const GESTURE_DICTIONARY = [
     description: 'Thumb, index, and pinky extended simultaneously.',
     handShape: '🤟',
     tips: 'Combine letters I, L, and Y.',
+    confidenceRequirement: 'High'
+  },
+  {
+    id: 'PHRASE_HELP',
+    class_id: 44,
+    name: 'Help',
+    category: 'Phrase',
+    description: 'Closed fist with thumb up placed over non-dominant flat palm.',
+    handShape: '🆘',
+    tips: 'Place thumbs up fist on palm and lift upward.',
+    confidenceRequirement: 'High'
+  },
+  {
+    id: 'PHRASE_WATER',
+    class_id: 45,
+    name: 'Water',
+    category: 'Phrase',
+    description: 'W sign (3 fingers extended) tapping chin twice.',
+    handShape: '💧',
+    tips: 'Form W shape and tap index finger against chin.',
+    confidenceRequirement: 'High'
+  },
+  {
+    id: 'PHRASE_THANK_YOU',
+    class_id: 46,
+    name: 'Thank You',
+    category: 'Phrase',
+    description: 'Flat hand fingertips touching lips then extending forward toward person.',
+    handShape: '🙏',
+    tips: 'Touch fingers to chin/lips and move hand forward.',
     confidenceRequirement: 'High'
   }
 ];

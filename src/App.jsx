@@ -4,8 +4,6 @@ import CameraFeed from './components/CameraFeed';
 import PredictionDisplay from './components/PredictionDisplay';
 import SentenceBuilder from './components/SentenceBuilder';
 import SpeechControls from './components/SpeechControls';
-import GestureDictionary from './components/GestureDictionary';
-import HistoryLog from './components/HistoryLog';
 import CustomGestureStudio from './components/CustomGestureStudio';
 import FirebaseModal from './components/FirebaseModal';
 import PwaInstallPrompt from './components/PwaInstallPrompt';
@@ -69,11 +67,12 @@ export default function App() {
       setPrediction(currentPrediction);
 
       // Frame Stability Counter matching fun_util.py
-      if (currentPrediction.text && currentPrediction.confidence > 0.82) {
-        if (oldTextRef.current === currentPrediction.text) {
+      const gestureKey = currentPrediction.action || currentPrediction.text;
+      if (gestureKey && currentPrediction.confidence > 0.82) {
+        if (oldTextRef.current === gestureKey) {
           countSameFrameRef.current += 1;
         } else {
-          oldTextRef.current = currentPrediction.text;
+          oldTextRef.current = gestureKey;
           countSameFrameRef.current = 0;
         }
 
@@ -82,24 +81,36 @@ export default function App() {
           countSameFrameRef.current = 0; // Reset counter
 
           if (mode === 'text') {
-            setSentence(prev => {
-              let newWord = currentPrediction.text;
-              let updated = prev + newWord;
+            if (currentPrediction.action === 'SPACE') {
+              setSentence(prev => (prev.endsWith(' ') ? prev : prev + ' '));
+              speechService.speak('Space');
+            } else if (currentPrediction.action === 'DELETE') {
+              setSentence(prev => {
+                if (prev.length === 0) return '';
+                const words = prev.trimEnd().split(' ');
+                words.pop();
+                return words.join(' ');
+              });
+              speechService.speak('Delete');
+            } else {
+              setSentence(prev => {
+                let newWord = currentPrediction.text;
+                let updated = prev + newWord;
 
-              // I/Me replacement formatting from fun_util.py
-              if (updated.startsWith('I/Me ')) {
-                updated = updated.replace('I/Me ', 'I ');
-              } else if (updated.endsWith('I/Me ')) {
-                updated = updated.replace('I/Me ', 'me ');
-              }
+                if (updated.startsWith('I/Me ')) {
+                  updated = updated.replace('I/Me ', 'I ');
+                } else if (updated.endsWith('I/Me ')) {
+                  updated = updated.replace('I/Me ', 'me ');
+                }
 
-              // Speak character / phrase
-              speechService.speak(newWord.trim());
-              return updated;
-            });
+                speechService.speak(newWord.trim());
+                return updated;
+              });
+            }
           }
         }
       }
+
     } else {
       setPrediction({
         name: 'Waiting for Hand...',
@@ -167,10 +178,6 @@ export default function App() {
             </div>
           </div>
         )}
-
-        {activeTab === 'dictionary' && <GestureDictionary />}
-
-        {activeTab === 'history' && <HistoryLog />}
 
         {activeTab === 'studio' && <CustomGestureStudio rawResults={rawResults} />}
       </main>

@@ -1,6 +1,6 @@
 """
-Python Backend Server - Sign Language Recognition API
-Framework: Flask + OpenCV + MediaPipe + Keras 44-Class Model (cnn_model_keras2.h5)
+Python Backend Server - Sign Language Recognition API (54 Master Classes)
+Framework: Flask + OpenCV + MediaPipe + Master SQLite Database (gesture_db.db)
 """
 
 from flask import Flask, request, jsonify
@@ -8,7 +8,7 @@ from flask_cors import CORS
 import cv2
 import numpy as np
 import base64
-from model_runner import model_runner, GESTURE_LABELS
+from model_runner import model_runner, GESTURE_LABELS, UNIFIED_MANIFEST
 
 app = Flask(__name__)
 CORS(app)
@@ -17,15 +17,16 @@ CORS(app)
 def health_check():
     return jsonify({
         "status": "healthy",
-        "service": "AI 44-Class Sign Language Recognition Backend",
-        "model_loaded": model_runner.model is not None,
-        "total_classes": len(GESTURE_LABELS)
+        "service": "AI 54-Class Unified Sign Language Recognition Backend",
+        "total_classes": len(GESTURE_LABELS),
+        "database": "gesture_db.db"
     })
 
 @app.route('/gestures', methods=['GET'])
 def get_gestures():
     return jsonify({
         "total": len(GESTURE_LABELS),
+        "manifest": UNIFIED_MANIFEST,
         "gestures": GESTURE_LABELS
     })
 
@@ -33,7 +34,7 @@ def get_gestures():
 def predict_frame():
     """
     Receives JSON body containing base64 encoded webcam image frame,
-    runs HSV skin segmentation + Keras 44-class model inference, and returns prediction.
+    runs master model inference, and returns prediction.
     """
     data = request.json
     if not data or 'image' not in data:
@@ -61,5 +62,5 @@ def predict_frame():
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
-    print("Starting 44-Class Sign Language Recognition Server on http://localhost:5000...")
+    print("Starting 54-Class Unified Sign Language Server on http://localhost:5000...")
     app.run(host='0.0.0.0', port=5000, debug=True)

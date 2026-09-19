@@ -14,7 +14,7 @@ export default function SentenceBuilder({
   setIsBlackboardView
 }) {
   const [copied, setCopied] = useState(false);
-  const [savedToFirebase, setSavedToFirebase] = useState(false);
+  const [savedToHistory, setSavedToHistory] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
 
   // Calculator Mode State
@@ -39,7 +39,6 @@ export default function SentenceBuilder({
   const handleEvaluateCalc = () => {
     try {
       if (!calcExpression) return;
-      // Safe function evaluation matching python eval
       const evalRes = Function(`"use strict"; return (${calcExpression})`)();
       setCalcResult(String(evalRes));
       speechService.speak(`${calcExpression} equals ${evalRes}`);
@@ -90,12 +89,12 @@ export default function SentenceBuilder({
     }
   };
 
-  const handleSaveToFirestore = async () => {
+  const handleSaveToVault = async () => {
     const textToSave = mode === 'calculator' ? `${calcExpression} = ${calcResult}` : sentence;
     if (!textToSave || textToSave.trim() === '') return;
     try {
       await firebaseService.saveHistoryRecord(textToSave.trim(), 1, currentPrediction?.name || 'Recognized Gesture');
-      setSavedToFirebase(true);
+      setSavedToHistory(true);
 
       confetti({
         particleCount: 50,
@@ -103,7 +102,7 @@ export default function SentenceBuilder({
         origin: { y: 0.8 }
       });
 
-      setTimeout(() => setSavedToFirebase(false), 3000);
+      setTimeout(() => setSavedToHistory(false), 3000);
     } catch (e) {
       console.error("Save error:", e);
     }
@@ -120,7 +119,7 @@ export default function SentenceBuilder({
               onClick={() => setMode('text')}
             >
               <Type size={14} />
-              <span>Text Mode</span>
+              <span>Text Assembly</span>
             </button>
 
             <button
@@ -128,7 +127,7 @@ export default function SentenceBuilder({
               onClick={() => setMode('calculator')}
             >
               <Calculator size={14} />
-              <span>Calculator Mode</span>
+              <span>Math Calculator</span>
             </button>
           </div>
         </div>
@@ -137,19 +136,19 @@ export default function SentenceBuilder({
           <button
             className={`btn-action-sm ${isBlackboardView ? 'active' : ''}`}
             onClick={() => setIsBlackboardView(!isBlackboardView)}
-            title="Toggle Blackboard View Style"
+            title="Toggle Blackboard Demonstration View"
           >
             <Monitor size={14} />
             <span>{isBlackboardView ? 'Normal View' : 'Blackboard View'}</span>
           </button>
 
           <button
-            className={`btn-action-sm ${savedToFirebase ? 'success' : 'primary'}`}
-            onClick={handleSaveToFirestore}
+            className={`btn-action-sm ${savedToHistory ? 'success' : 'primary'}`}
+            onClick={handleSaveToVault}
             disabled={mode === 'calculator' ? !calcExpression : !sentence.trim()}
           >
-            {savedToFirebase ? <Check size={14} /> : <CloudUpload size={14} />}
-            <span>{savedToFirebase ? 'Saved!' : 'Save Firestore'}</span>
+            {savedToHistory ? <Check size={14} /> : <CloudUpload size={14} />}
+            <span>{savedToHistory ? 'Saved to Vault!' : 'Save Transcript'}</span>
           </button>
         </div>
       </div>
@@ -165,7 +164,7 @@ export default function SentenceBuilder({
           <p className="sentence-text">{sentence}</p>
         ) : (
           <p className="sentence-placeholder">
-            Hold signs facing webcam (~20 frames) to auto-append characters & words...
+            Form sign gestures facing webcam (~12 frames) to auto-append characters & words...
           </p>
         )}
       </div>
@@ -198,7 +197,7 @@ export default function SentenceBuilder({
             disabled={mode === 'calculator' ? !calcExpression : !sentence.trim()}
           >
             {copied ? <Check size={18} /> : <Copy size={18} />}
-            <span>{copied ? 'Copied!' : 'Copy'}</span>
+            <span>{copied ? 'Copied!' : 'Copy Transcript'}</span>
           </button>
         </div>
 

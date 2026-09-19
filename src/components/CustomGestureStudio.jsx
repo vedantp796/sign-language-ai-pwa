@@ -1,71 +1,186 @@
 import React, { useState } from 'react';
-import { Cpu, Camera, Save, CheckCircle, Database } from 'lucide-react';
+import { Cpu, Camera, Save, CheckCircle, Database, Download, FileText, Sparkles, RefreshCw, Zap } from 'lucide-react';
 import { firebaseService } from '../services/firebaseService';
-import { normalizeLandmarks } from '../utils/mathHelpers';
+import { normalizeLandmarks, getDistance } from '../utils/mathHelpers';
 
 export default function CustomGestureStudio({ rawResults }) {
   const [gestureLabel, setGestureLabel] = useState('');
   const [isSaved, setIsSaved] = useState(false);
   const [savedGestures, setSavedGestures] = useState([]);
+  const [activeTab, setActiveTab] = useState('capture');
 
-  const currentLandmarks = rawResults && rawResults.multiHandLandmarks && rawResults.multiHandLandmarks.length > 0
-    ? rawResults.multiHandLandmarks[0]
-    : null;
+  const landmarksList = rawResults?.landmarks || rawResults?.multiHandLandmarks;
+  const currentLandmarks = landmarksList && landmarksList.length > 0 ? landmarksList[0] : null;
 
+  // Record Landmark Signature
   const handleSaveCustomSign = async () => {
     if (!gestureLabel || !gestureLabel.trim()) {
-      alert("Please enter a custom sign name / label first.");
+      alert("Please enter a custom sign name or label first.");
       return;
     }
 
     if (!currentLandmarks) {
-      alert("No active hand detected in webcam feed. Hold hand in front of camera.");
+      alert("No active hand detected in webcam feed. Hold hand facing the camera.");
       return;
     }
 
     const normalized = normalizeLandmarks(currentLandmarks);
+    const newRecord = {
+      id: Date.now(),
+      name: gestureLabel.trim(),
+      landmarks: normalized,
+      rawPoints: currentLandmarks,
+      timestamp: new Date().toLocaleTimeString(),
+      dateISO: new Date().toISOString()
+    };
+
+    // Save to local session & Firebase
+    setSavedGestures(prev => [newRecord, ...prev]);
     await firebaseService.saveCustomGesture(gestureLabel.trim(), normalized);
 
     setIsSaved(true);
-    setSavedGestures(prev => [{ name: gestureLabel.trim(), count: normalized.length, timestamp: new Date().toLocaleTimeString() }, ...prev]);
     setGestureLabel('');
+    setTimeout(() => setIsSaved(false), 2500);
+  };
 
-    setTimeout(() => setIsSaved(false), 3000);
+  // Live Match Evaluator
+  let liveMatch = null;
+  if (currentLandmarks && savedGestures.length > 0) {
+    const currentNorm = normalizeLandmarks(currentLandmarks);
+    let bestScore = Infinity;
+    let bestSign = null;
+
+    savedGestures.forEach(saved => {
+      let sumDist = 0;
+      for (let i = 0; i < 21; i++) {
+        if (currentNorm[i] && saved.landmarks[i]) {
+          sumDist += getDistance(currentNorm[i], saved.landmarks[i]);
+        }
+      }
+      const avgDist = sumDist / 21;
+      if (avgDist < bestScore) {
+        bestScore = avgDist;
+        bestSign = saved;
+      }
+    });
+
+    if (bestScore < 0.22 && bestSign) {
+      const matchPercent = Math.max(0, Math.min(100, Math.round((1 - bestScore / 0.25) * 100)));
+      liveMatch = { sign: bestSign.name, matchPercent };
+    }
+  }
+
+  // Export Dataset as JSON
+  const handleExportJSON = () => {
+    if (savedGestures.length === 0) {
+      alert("No recorded gestures to export. Record at least one sign.");
+      return;
+    }
+
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(savedGestures, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", `asl_custom_dataset_${Date.now()}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+  };
+
+  // Export Dataset as CSV (63 Features + Label)
+  const handleExportCSV = () => {
+    if (savedGestures.length === 0) {
+      alert("No recorded gestures to export. Record at least one sign.");
+      return;
+    }
+
+    // Header: label, x0, y0, z0, ..., x20, y20, z20
+    const headers = ['label'];
+    for (let i = 0; i < 21; i++) {
+      headers.push(`x${i}`, `y${i}`, `z${i}`);
+    }
+
+    const rows = savedGestures.map(item => {
+      const row = [item.name];
+      item.landmarks.forEach(p => {
+        row.push(p.x.toFixed(6), p.y.toFixed(6), (p.z || 0).toFixed(6));
+      });
+      return row.join(',');
+    });
+
+    const csvContent = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `asl_landmark_dataset_${Date.now()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
   };
 
   return (
-    <div className="studio-view-container glass-panel">
-      <div className="studio-header">
-        <div className="flex-align-center gap-2">
-          <Cpu size={24} className="cyan-icon" />
-          <div>
-            <h2 className="section-title">Custom Gesture AI Studio</h2>
-            <p className="section-subtitle">Capture 21-point landmark signatures & train custom signs in Firebase</p>
+    <div className="studio-container">
+      {/* Studio Header */}
+      <div className="dictionary-header glass-panel glow-border">
+        <div className="flex-align-center justify-between flex-wrap gap-4">
+          <div className="flex-align-center gap-3">
+            <div className="logo-icon">
+              <Cpu size={24} />
+            </div>
+            <div>
+              <h2 className="section-title">Custom Gesture AI Studio</h2>
+              <p className="section-subtitle">Record 21-point hand landmark signatures, test custom signs, and export ML datasets (JSON/CSV)</p>
+            </div>
+          </div>
+
+          <div className="flex-align-center gap-2">
+            <button className="btn-action-sm" onClick={handleExportJSON} disabled={savedGestures.length === 0}>
+              <Download size={14} />
+              <span>Export JSON</span>
+            </button>
+            <button className="btn-action-sm success" onClick={handleExportCSV} disabled={savedGestures.length === 0}>
+              <FileText size={14} />
+              <span>Export CSV (ML Dataset)</span>
+            </button>
           </div>
         </div>
       </div>
 
       <div className="studio-grid">
-        {/* Capture Panel */}
+        {/* Left Column: Capture & Live Test */}
         <div className="studio-card glass-panel">
-          <h3 className="card-title mb-4">Capture Hand Snapshot</h3>
+          <h3 className="card-title flex-align-center gap-2">
+            <Camera size={18} className="cyan-icon" />
+            <span>Hand Landmark Snapshot Recorder</span>
+          </h3>
 
-          <div className="landmark-status-box mb-4">
+          <div className="landmark-status-box">
             {currentLandmarks ? (
               <div className="flex-align-center gap-2 green-text">
-                <CheckCircle size={18} />
+                <CheckCircle size={18} className="green-icon" />
                 <span>21 Hand Joint Landmarks Active in Feed!</span>
               </div>
             ) : (
               <div className="flex-align-center gap-2 gray-text">
                 <Camera size={18} />
-                <span>No Hand Detected. Position hand in front of webcam...</span>
+                <span>Position hand facing webcam to capture landmark vector...</span>
               </div>
             )}
           </div>
 
-          <div className="form-group mb-4">
-            <label className="control-label">Custom Sign Label / Word</label>
+          {/* Live Match Notification */}
+          {liveMatch && (
+            <div className="live-match-box glass-panel glow-border">
+              <div className="flex-align-center gap-2">
+                <Zap className="neon-icon" size={18} />
+                <span className="match-title">Custom Sign Match: <strong>{liveMatch.sign}</strong></span>
+              </div>
+              <span className="match-val">{liveMatch.matchPercent}% Match Score</span>
+            </div>
+          )}
+
+          <div className="control-group">
+            <label className="control-label">Custom Gesture Label / Word</label>
             <input
               type="text"
               className="custom-input"
@@ -76,30 +191,47 @@ export default function CustomGestureStudio({ rawResults }) {
           </div>
 
           <button
-            className={`btn-primary width-full ${isSaved ? 'success' : ''}`}
+            className={`btn-primary ${isSaved ? 'success' : ''}`}
             onClick={handleSaveCustomSign}
             disabled={!currentLandmarks}
           >
             <Save size={16} />
-            <span>{isSaved ? 'Saved to Firebase!' : 'Record & Save Landmark Signature'}</span>
+            <span>{isSaved ? 'Saved to Dataset!' : 'Record 21-Point Landmark Signature'}</span>
           </button>
         </div>
 
-        {/* Saved Custom Signs List */}
+        {/* Right Column: Recorded Dataset Table */}
         <div className="studio-card glass-panel">
-          <h3 className="card-title mb-4">Custom Signed Library ({savedGestures.length})</h3>
+          <div className="flex-align-center justify-between">
+            <h3 className="card-title flex-align-center gap-2">
+              <Database size={18} className="cyan-icon" />
+              <span>Recorded Custom Dataset ({savedGestures.length})</span>
+            </h3>
+            {savedGestures.length > 0 && (
+              <button className="btn-action-sm danger" onClick={() => setSavedGestures([])}>
+                <span>Clear All</span>
+              </button>
+            )}
+          </div>
 
           {savedGestures.length === 0 ? (
-            <p className="gray-text">No custom signs recorded in this session yet.</p>
+            <p className="sentence-placeholder" style={{ padding: '20px 0' }}>
+              No custom landmark samples recorded in this session yet. Hold your hand in front of the camera and click Record!
+            </p>
           ) : (
-            <div className="custom-signs-list">
-              {savedGestures.map((sg, idx) => (
-                <div key={idx} className="custom-sign-item">
+            <div className="captured-list">
+              {savedGestures.map(item => (
+                <div key={item.id} className="captured-item">
                   <div className="flex-align-center gap-2">
-                    <Database size={16} className="cyan-icon" />
-                    <strong>{sg.name}</strong>
+                    <Sparkles size={16} className="cyan-icon" />
+                    <div>
+                      <strong>{item.name}</strong>
+                      <div className="timestamp" style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
+                        21 Points Normalized • Recorded at {item.timestamp}
+                      </div>
+                    </div>
                   </div>
-                  <span className="timestamp">{sg.timestamp}</span>
+                  <span className="mode-count-tag">Normalized</span>
                 </div>
               ))}
             </div>

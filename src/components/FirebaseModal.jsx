@@ -7,7 +7,7 @@ export default function FirebaseModal({ isOpen, onClose }) {
 
   const currentConfig = getFirebaseConfig();
   const [activeSubTab, setActiveSubTab] = useState('auth'); // 'auth' | 'config'
-  
+
   // Auth Form State
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -80,7 +80,7 @@ export default function FirebaseModal({ isOpen, onClose }) {
         <div className="modal-header">
           <div className="flex-align-center gap-2">
             <Database size={22} className="cyan-icon" />
-            <h3 className="modal-title">Firebase Database & User Accounts</h3>
+            <h3 className="modal-title">Cloud Vault Settings & User Account</h3>
           </div>
           <button className="btn-close-modal" onClick={onClose}>
             <X size={18} />
@@ -94,7 +94,7 @@ export default function FirebaseModal({ isOpen, onClose }) {
             onClick={() => setActiveSubTab('auth')}
           >
             <UserCheck size={16} />
-            <span>User Account & Tracking</span>
+            <span>User Account & Security</span>
           </button>
 
           <button
@@ -102,7 +102,7 @@ export default function FirebaseModal({ isOpen, onClose }) {
             onClick={() => setActiveSubTab('config')}
           >
             <Key size={16} />
-            <span>Firebase API Keys</span>
+            <span>Cloud API Credentials</span>
           </button>
         </div>
 
@@ -116,7 +116,7 @@ export default function FirebaseModal({ isOpen, onClose }) {
                       <h4 className="user-email">{currentUser.email}</h4>
                       <p className="user-uid">UID: {currentUser.uid}</p>
                     </div>
-                    <span className="badge-online">Logged In</span>
+                    <span className="badge-online">Active User</span>
                   </div>
                   <button className="btn-danger-sm width-full mt-3" onClick={handleLogout}>
                     <LogOut size={14} />
@@ -166,7 +166,7 @@ export default function FirebaseModal({ isOpen, onClose }) {
           ) : (
             <div className="config-panel">
               <p className="modal-description">
-                Enter your Firebase project keys below to connect real-time Firestore database storage.
+                Configure your cloud vault database keys below for real-time online transcript backup and sync.
               </p>
 
               <div className="firebase-form-grid">
@@ -223,7 +223,7 @@ export default function FirebaseModal({ isOpen, onClose }) {
           {activeSubTab === 'config' && (
             <button className={`btn-primary-sm ${savedSuccess ? 'success' : ''}`} onClick={handleSaveConfig}>
               {savedSuccess ? <Check size={14} /> : <Save size={14} />}
-              <span>{savedSuccess ? 'Saved & Reloading!' : 'Save Firebase Config'}</span>
+              <span>{savedSuccess ? 'Saved & Reloading!' : 'Save Credentials'}</span>
             </button>
           )}
         </div>

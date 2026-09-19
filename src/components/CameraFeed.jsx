@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Camera, CameraOff, Eye, Box, Share2, FlipHorizontal, RefreshCw } from 'lucide-react';
+import { Camera, CameraOff, Eye, Box, Share2, FlipHorizontal, Maximize2 } from 'lucide-react';
 import { MediaPipeService } from '../services/mediapipeService';
 
 export default function CameraFeed({ onLandmarksDetected, isCameraActive, setIsCameraActive }) {
@@ -13,6 +13,7 @@ export default function CameraFeed({ onLandmarksDetected, isCameraActive, setIsC
   const [isFlipped, setIsFlipped] = useState(true);
   const [fps, setFps] = useState(0);
   const [handCount, setHandCount] = useState(0);
+  const [resolution, setResolution] = useState('1280x720');
   const [cameraError, setCameraError] = useState(null);
 
   const frameTimeRef = useRef([]);
@@ -31,12 +32,15 @@ export default function CameraFeed({ onLandmarksDetected, isCameraActive, setIsC
           videoRef.current.srcObject = stream;
           await videoRef.current.play();
 
+          if (videoRef.current.videoWidth && videoRef.current.videoHeight) {
+            setResolution(`${videoRef.current.videoWidth}x${videoRef.current.videoHeight}`);
+          }
+
           // Initialize MediaPipe pipeline
           const service = new MediaPipeService();
           mpServiceRef.current = service;
 
           service.initialize(videoRef.current, canvasRef.current, (results) => {
-            // Calculate FPS
             const now = performance.now();
             frameTimeRef.current.push(now);
             if (frameTimeRef.current.length > 20) frameTimeRef.current.shift();
@@ -45,10 +49,9 @@ export default function CameraFeed({ onLandmarksDetected, isCameraActive, setIsC
               setFps(Math.round(1000 / delta));
             }
 
-            const count = results.multiHandLandmarks ? results.multiHandLandmarks.length : 0;
+            const count = results.landmarks ? results.landmarks.length : (results.multiHandLandmarks ? results.multiHandLandmarks.length : 0);
             setHandCount(count);
 
-            // Re-render canvas with custom user options
             if (canvasRef.current) {
               service.drawCanvasOverlay(canvasRef.current, results, {
                 showSkeleton,
@@ -95,15 +98,16 @@ export default function CameraFeed({ onLandmarksDetected, isCameraActive, setIsC
   };
 
   return (
-    <div className="camera-feed-card glass-panel">
+    <div className="camera-feed-card glass-panel glow-border">
       <div className="camera-header">
         <div className="camera-title-wrap">
           <span className={`status-dot ${isCameraActive ? 'pulse-green' : 'gray'}`}></span>
-          <h3 className="card-title">Live Vision Feed</h3>
+          <h3 className="card-title">Live Vision Tracking Feed</h3>
         </div>
         <div className="camera-metrics">
+          <span className="metric-tag">{resolution}</span>
           <span className="metric-tag">{fps} FPS</span>
-          <span className="metric-tag blue">{handCount} Hand{handCount !== 1 ? 's' : ''} Detected</span>
+          <span className="metric-tag blue">{handCount} Hand{handCount !== 1 ? 's' : ''} Tracked</span>
         </div>
       </div>
 
@@ -121,12 +125,20 @@ export default function CameraFeed({ onLandmarksDetected, isCameraActive, setIsC
           className={`canvas-element ${isFlipped ? 'flipped' : ''}`}
         />
 
+        {/* High-Tech HUD Bracket Overlay */}
+        <div className="hud-reticle">
+          <div className="hud-corner tl"></div>
+          <div className="hud-corner tr"></div>
+          <div className="hud-corner bl"></div>
+          <div className="hud-corner br"></div>
+        </div>
+
         {!isCameraActive && !cameraError && (
           <div className="camera-placeholder">
             <Camera size={54} className="icon-pulse" />
-            <p>Webcam is paused</p>
+            <p>Webcam Vision Feed is paused</p>
             <button className="btn-primary" onClick={toggleCamera}>
-              Start Camera Feed
+              Start Vision Stream
             </button>
           </div>
         )}
@@ -136,7 +148,7 @@ export default function CameraFeed({ onLandmarksDetected, isCameraActive, setIsC
             <CameraOff size={54} />
             <p>{cameraError}</p>
             <button className="btn-primary" onClick={toggleCamera}>
-              Retry Camera
+              Retry Camera Connection
             </button>
           </div>
         )}
@@ -185,7 +197,7 @@ export default function CameraFeed({ onLandmarksDetected, isCameraActive, setIsC
           title="Flip Mirror View"
         >
           <FlipHorizontal size={16} />
-          <span>Mirror</span>
+          <span>Mirror View</span>
         </button>
       </div>
     </div>

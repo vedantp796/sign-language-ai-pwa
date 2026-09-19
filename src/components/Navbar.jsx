@@ -1,5 +1,5 @@
 import React from 'react';
-import { Camera, Database, Download, BookOpen, History, Cpu, Sliders, Sparkles } from 'lucide-react';
+import { Camera, Database, Download, Cpu, Sparkles } from 'lucide-react';
 
 export default function Navbar({
   activeTab,
@@ -18,7 +18,7 @@ export default function Navbar({
         </div>
         <div>
           <h1 className="app-title">SignAI <span className="pwa-badge">PWA</span></h1>
-          <p className="app-subtitle">AI Sign Language Translator & Database</p>
+          <p className="app-subtitle">Real-Time AI Sign Language Translator</p>
         </div>
       </div>
 
@@ -32,27 +32,11 @@ export default function Navbar({
         </button>
 
         <button
-          className={`nav-tab-btn ${activeTab === 'dictionary' ? 'active' : ''}`}
-          onClick={() => setActiveTab('dictionary')}
-        >
-          <BookOpen size={18} />
-          <span>Sign Dictionary</span>
-        </button>
-
-        <button
-          className={`nav-tab-btn ${activeTab === 'history' ? 'active' : ''}`}
-          onClick={() => setActiveTab('history')}
-        >
-          <History size={18} />
-          <span>Firestore Logs</span>
-        </button>
-
-        <button
           className={`nav-tab-btn ${activeTab === 'studio' ? 'active' : ''}`}
           onClick={() => setActiveTab('studio')}
         >
           <Cpu size={18} />
-          <span>Custom Studio</span>
+          <span>AI Gesture Lab</span>
         </button>
       </nav>
 
@@ -60,10 +44,10 @@ export default function Navbar({
         <button
           className={`status-pill ${isFirebaseOnline ? 'online' : 'demo'}`}
           onClick={onOpenFirebaseModal}
-          title="Click to configure Firebase credentials"
+          title="Cloud Vault Settings & Sync Configuration"
         >
           <Database size={14} />
-          <span>{isFirebaseOnline ? 'Firestore Live' : 'Firebase (Demo)'}</span>
+          <span>{isFirebaseOnline ? 'Cloud Vault Sync' : 'Local Vault Mode'}</span>
         </button>
 
         {canInstallPwa && (
