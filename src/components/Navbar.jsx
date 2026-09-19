@@ -1,15 +1,17 @@
 import React from 'react';
-import { Camera, Database, Download, Cpu, Sparkles } from 'lucide-react';
+import { Camera, Download, Cpu, Sparkles, User, UserCheck } from 'lucide-react';
+import { firebaseService } from '../services/firebaseService';
 
 export default function Navbar({
   activeTab,
   setActiveTab,
-  isCameraActive,
-  isFirebaseOnline,
   canInstallPwa,
   onInstallPwa,
   onOpenFirebaseModal
 }) {
+  const currentUser = firebaseService.currentUser;
+  const isLoggedIn = currentUser && !currentUser.isAnonymous;
+
   return (
     <header className="navbar-container">
       <div className="navbar-brand">
@@ -42,12 +44,12 @@ export default function Navbar({
 
       <div className="navbar-controls">
         <button
-          className={`status-pill ${isFirebaseOnline ? 'online' : 'demo'}`}
+          className={`nav-auth-btn ${isLoggedIn ? 'logged-in' : ''}`}
           onClick={onOpenFirebaseModal}
-          title="Cloud Vault Settings & Sync Configuration"
+          title={isLoggedIn ? "Account Profile & Settings" : "Log In or Sign Up"}
         >
-          <Database size={14} />
-          <span>{isFirebaseOnline ? 'Cloud Vault Sync' : 'Local Vault Mode'}</span>
+          {isLoggedIn ? <UserCheck size={16} className="cyan-icon" /> : <User size={16} />}
+          <span>{isLoggedIn ? (currentUser.email ? currentUser.email.split('@')[0] : 'My Account') : 'Log In / Sign Up'}</span>
         </button>
 
         {canInstallPwa && (

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Cpu, Camera, Save, CheckCircle, Database, Download, FileText, Sparkles, RefreshCw, Zap } from 'lucide-react';
+import { Cpu, Camera, Save, CheckCircle, Database, Download, FileText, Sparkles, Zap } from 'lucide-react';
 import { firebaseService } from '../services/firebaseService';
 import { normalizeLandmarks, getDistance } from '../utils/mathHelpers';
 
@@ -7,7 +7,6 @@ export default function CustomGestureStudio({ rawResults }) {
   const [gestureLabel, setGestureLabel] = useState('');
   const [isSaved, setIsSaved] = useState(false);
   const [savedGestures, setSavedGestures] = useState([]);
-  const [activeTab, setActiveTab] = useState('capture');
 
   const landmarksList = rawResults?.landmarks || rawResults?.multiHandLandmarks;
   const currentLandmarks = landmarksList && landmarksList.length > 0 ? landmarksList[0] : null;
@@ -15,12 +14,12 @@ export default function CustomGestureStudio({ rawResults }) {
   // Record Landmark Signature
   const handleSaveCustomSign = async () => {
     if (!gestureLabel || !gestureLabel.trim()) {
-      alert("Please enter a custom sign name or label first.");
+      alert("Please enter a sign name or word first.");
       return;
     }
 
     if (!currentLandmarks) {
-      alert("No active hand detected in webcam feed. Hold hand facing the camera.");
+      alert("No active hand detected in camera. Position your hand clearly facing the camera.");
       return;
     }
 
@@ -70,31 +69,30 @@ export default function CustomGestureStudio({ rawResults }) {
     }
   }
 
-  // Export Dataset as JSON
+  // Export Signs as Backup JSON
   const handleExportJSON = () => {
     if (savedGestures.length === 0) {
-      alert("No recorded gestures to export. Record at least one sign.");
+      alert("No recorded gestures to backup yet. Record at least one sign.");
       return;
     }
 
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(savedGestures, null, 2));
     const downloadAnchor = document.createElement('a');
     downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", `asl_custom_dataset_${Date.now()}.json`);
+    downloadAnchor.setAttribute("download", `my_custom_signs_backup_${Date.now()}.json`);
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
   };
 
-  // Export Dataset as CSV (63 Features + Label)
+  // Export Dataset as CSV
   const handleExportCSV = () => {
     if (savedGestures.length === 0) {
-      alert("No recorded gestures to export. Record at least one sign.");
+      alert("No recorded gestures to export yet. Record at least one sign.");
       return;
     }
 
-    // Header: label, x0, y0, z0, ..., x20, y20, z20
-    const headers = ['label'];
+    const headers = ['sign_label'];
     for (let i = 0; i < 21; i++) {
       headers.push(`x${i}`, `y${i}`, `z${i}`);
     }
@@ -112,7 +110,7 @@ export default function CustomGestureStudio({ rawResults }) {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", `asl_landmark_dataset_${Date.now()}.csv`);
+    link.setAttribute("download", `custom_signs_export_${Date.now()}.csv`);
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -128,19 +126,19 @@ export default function CustomGestureStudio({ rawResults }) {
               <Cpu size={24} />
             </div>
             <div>
-              <h2 className="section-title">Custom Gesture AI Studio</h2>
-              <p className="section-subtitle">Record 21-point hand landmark signatures, test custom signs, and export ML datasets (JSON/CSV)</p>
+              <h2 className="section-title">Custom Sign Studio</h2>
+              <p className="section-subtitle">Teach the AI new sign gestures, test your signs live, and save custom dictionaries.</p>
             </div>
           </div>
 
           <div className="flex-align-center gap-2">
             <button className="btn-action-sm" onClick={handleExportJSON} disabled={savedGestures.length === 0}>
               <Download size={14} />
-              <span>Export JSON</span>
+              <span>Backup Signs (JSON)</span>
             </button>
             <button className="btn-action-sm success" onClick={handleExportCSV} disabled={savedGestures.length === 0}>
               <FileText size={14} />
-              <span>Export CSV (ML Dataset)</span>
+              <span>Export Spreadsheet (CSV)</span>
             </button>
           </div>
         </div>
@@ -151,19 +149,19 @@ export default function CustomGestureStudio({ rawResults }) {
         <div className="studio-card glass-panel">
           <h3 className="card-title flex-align-center gap-2">
             <Camera size={18} className="cyan-icon" />
-            <span>Hand Landmark Snapshot Recorder</span>
+            <span>Record New Gesture</span>
           </h3>
 
           <div className="landmark-status-box">
             {currentLandmarks ? (
               <div className="flex-align-center gap-2 green-text">
                 <CheckCircle size={18} className="green-icon" />
-                <span>21 Hand Joint Landmarks Active in Feed!</span>
+                <span>Hand Detected & Ready to Record!</span>
               </div>
             ) : (
               <div className="flex-align-center gap-2 gray-text">
                 <Camera size={18} />
-                <span>Position hand facing webcam to capture landmark vector...</span>
+                <span>Hold hand clearly in front of webcam to record sign...</span>
               </div>
             )}
           </div>
@@ -173,18 +171,18 @@ export default function CustomGestureStudio({ rawResults }) {
             <div className="live-match-box glass-panel glow-border">
               <div className="flex-align-center gap-2">
                 <Zap className="neon-icon" size={18} />
-                <span className="match-title">Custom Sign Match: <strong>{liveMatch.sign}</strong></span>
+                <span className="match-title">Sign Recognized: <strong>{liveMatch.sign}</strong></span>
               </div>
               <span className="match-val">{liveMatch.matchPercent}% Match Score</span>
             </div>
           )}
 
           <div className="control-group">
-            <label className="control-label">Custom Gesture Label / Word</label>
+            <label className="control-label">Sign Name / Word Label</label>
             <input
               type="text"
               className="custom-input"
-              placeholder="e.g. Help, Emergency, Water, My Name..."
+              placeholder="e.g. Hello, Emergency, Water, My Name..."
               value={gestureLabel}
               onChange={(e) => setGestureLabel(e.target.value)}
             />
@@ -196,7 +194,7 @@ export default function CustomGestureStudio({ rawResults }) {
             disabled={!currentLandmarks}
           >
             <Save size={16} />
-            <span>{isSaved ? 'Saved to Dataset!' : 'Record 21-Point Landmark Signature'}</span>
+            <span>{isSaved ? 'Saved to Signs Library!' : 'Record & Save Sign'}</span>
           </button>
         </div>
 
@@ -205,7 +203,7 @@ export default function CustomGestureStudio({ rawResults }) {
           <div className="flex-align-center justify-between">
             <h3 className="card-title flex-align-center gap-2">
               <Database size={18} className="cyan-icon" />
-              <span>Recorded Custom Dataset ({savedGestures.length})</span>
+              <span>My Saved Signs ({savedGestures.length})</span>
             </h3>
             {savedGestures.length > 0 && (
               <button className="btn-action-sm danger" onClick={() => setSavedGestures([])}>
@@ -216,7 +214,7 @@ export default function CustomGestureStudio({ rawResults }) {
 
           {savedGestures.length === 0 ? (
             <p className="sentence-placeholder" style={{ padding: '20px 0' }}>
-              No custom landmark samples recorded in this session yet. Hold your hand in front of the camera and click Record!
+              No custom signs saved yet. Record your first gesture on the left!
             </p>
           ) : (
             <div className="captured-list">
@@ -227,11 +225,11 @@ export default function CustomGestureStudio({ rawResults }) {
                     <div>
                       <strong>{item.name}</strong>
                       <div className="timestamp" style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
-                        21 Points Normalized • Recorded at {item.timestamp}
+                        Recorded at {item.timestamp}
                       </div>
                     </div>
                   </div>
-                  <span className="mode-count-tag">Normalized</span>
+                  <span className="mode-count-tag">Active Sign</span>
                 </div>
               ))}
             </div>
