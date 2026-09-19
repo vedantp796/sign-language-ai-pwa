@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Sparkles, Check, Save, RotateCcw, UserCheck, UserPlus, LogIn, LogOut, Key, Mail, Lock, ShieldCheck } from 'lucide-react';
 import { getFirebaseConfig, saveFirebaseConfig, firebaseService } from '../services/firebaseService';
 
@@ -15,6 +15,14 @@ export default function FirebaseModal({ isOpen, onClose }) {
   const [authError, setAuthError] = useState('');
   const [authSuccess, setAuthSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+  const [currentUser, setCurrentUser] = useState(firebaseService.currentUser);
+
+  useEffect(() => {
+    const unsubscribe = firebaseService.subscribeAuth((u) => {
+      setCurrentUser(u);
+    });
+    return () => unsubscribe();
+  }, []);
 
   // Firebase Config State
   const [apiKey, setApiKey] = useState(currentConfig.apiKey || '');
@@ -22,8 +30,6 @@ export default function FirebaseModal({ isOpen, onClose }) {
   const [projectId, setProjectId] = useState(currentConfig.projectId || '');
   const [storageBucket, setStorageBucket] = useState(currentConfig.storageBucket || '');
   const [savedSuccess, setSavedSuccess] = useState(false);
-
-  const currentUser = firebaseService.currentUser;
 
   const handleAuthSubmit = async (e) => {
     e.preventDefault();
@@ -38,17 +44,20 @@ export default function FirebaseModal({ isOpen, onClose }) {
     }
 
     try {
-      if (isRegisterMode) {
-        const res = await firebaseService.registerUser(email, password);
-        if (res.error) setAuthError(res.error);
-        else setAuthSuccess('Account registered & logged in successfully!');
-      } else {
-        const res = await firebaseService.loginUser(email, password);
-        if (res.error) setAuthError(res.error);
-        else setAuthSuccess('Logged in successfully!');
+      const res = isRegisterMode
+        ? await firebaseService.registerUser(email, password)
+        : await firebaseService.loginUser(email, password);
+
+      if (res && res.user) {
+        setAuthSuccess(isRegisterMode ? 'Account Created & Logged In!' : 'Logged In Successfully!');
+        setTimeout(() => {
+          onClose();
+        }, 1000);
+      } else if (res && res.error) {
+        setAuthError(res.error);
       }
     } catch (err) {
-      setAuthError(err.message || 'Authentication failed. Check details.');
+      setAuthError('Authentication failed. Check your details.');
     } finally {
       setLoading(false);
     }
@@ -95,8 +104,8 @@ export default function FirebaseModal({ isOpen, onClose }) {
           <h2 className="auth-brand-title">SignAI</h2>
           <p className="auth-subtitle">
             {activeSubTab === 'auth'
-              ? (currentUser && !currentUser.isAnonymous ? 'Manage Your Account Settings' : 'Sign in to access Cloud Vault & Custom Sign Sync')
-              : 'Configure Advanced Cloud Credentials'}
+              ? (currentUser ? 'User Account Profile' : 'Sign in or create an account to get started.')
+              : 'Configure API Settings'}
           </p>
         </div>
 
@@ -114,14 +123,14 @@ export default function FirebaseModal({ isOpen, onClose }) {
             onClick={() => setActiveSubTab('config')}
           >
             <Key size={16} />
-            <span>Cloud API</span>
+            <span>Settings</span>
           </button>
         </div>
 
         <div className="modal-body-container">
           {activeSubTab === 'auth' ? (
             <div className="auth-panel-wrapper">
-              {currentUser && !currentUser.isAnonymous ? (
+              {currentUser ? (
                 /* Logged-in Profile Card */
                 <div className="insta-profile-box glass-panel">
                   <div className="avatar-circle">
@@ -131,7 +140,7 @@ export default function FirebaseModal({ isOpen, onClose }) {
                     <h3 className="user-email-title">{currentUser.email}</h3>
                     <span className="profile-status-pill">
                       <ShieldCheck size={14} />
-                      <span>Cloud Sync Active</span>
+                      <span>Account Active</span>
                     </span>
                   </div>
                   <button className="btn-logout-pill" onClick={handleLogout}>
@@ -220,10 +229,10 @@ export default function FirebaseModal({ isOpen, onClose }) {
               )}
             </div>
           ) : (
-            /* Cloud API Config Panel */
+            /* Config Panel */
             <div className="config-panel-wrapper">
               <p className="config-desc">
-                Provide custom Firebase project credentials to sync translation logs directly to your own cloud instance.
+                Configure API settings and keys for your session.
               </p>
 
               <div className="config-form-grid">

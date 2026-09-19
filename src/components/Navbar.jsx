@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Camera, Download, Cpu, Sparkles, User, UserCheck } from 'lucide-react';
 import { firebaseService } from '../services/firebaseService';
 
@@ -9,7 +9,15 @@ export default function Navbar({
   onInstallPwa,
   onOpenFirebaseModal
 }) {
-  const currentUser = firebaseService.currentUser;
+  const [currentUser, setCurrentUser] = useState(firebaseService.currentUser);
+
+  useEffect(() => {
+    const unsubscribe = firebaseService.subscribeAuth((user) => {
+      setCurrentUser(user);
+    });
+    return () => unsubscribe();
+  }, []);
+
   const isLoggedIn = currentUser && !currentUser.isAnonymous;
 
   return (
