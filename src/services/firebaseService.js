@@ -1,6 +1,6 @@
 /**
- * Authentication & User Session Service
- * Provides reliable user login/registration with instant session persistence
+ * Authentication & Firestore User Tracking Service
+ * Direct cloud sync with sign-language-pwa Firebase Project
  */
 
 import { initializeApp, getApps, getApp } from 'firebase/app';
@@ -115,7 +115,7 @@ class FirebaseService {
             isAnonymous: false
           };
           this.saveLocalUser(userObj);
-          this.trackUserLogin(user);
+          this.trackUserLogin(userObj);
         }
       });
     } catch (e) {
@@ -123,71 +123,88 @@ class FirebaseService {
     }
   }
 
-  // 1. GUARANTEED LOGIN & REGISTRATION (UI-LEVEL & CLOUD COMPATIBLE)
-  async registerUser(email, password, displayName = null) {
+  // 1. REGISTER USER & DIRECT FIRESTORE DOCUMENT CREATION
+  async registerUser(email, password, displayName = 'Sign User') {
     const cleanEmail = email.trim();
-    const username = displayName || cleanEmail.split('@')[0];
+    const username = displayName || (cleanEmail.includes('@') ? cleanEmail.split('@')[0] : 'Sign User');
 
-    // Try Firebase Auth
+    let userObj = null;
+
     if (this.auth) {
       try {
         const cred = await createUserWithEmailAndPassword(this.auth, cleanEmail, password);
-        const fbUser = {
+        userObj = {
           uid: cred.user.uid,
           email: cred.user.email,
           displayName: username,
           isAnonymous: false
         };
-        this.saveLocalUser(fbUser);
-        await this.trackUserLogin(cred.user, username);
-        return { user: fbUser, success: true };
       } catch (err) {
-        console.warn("Firebase Auth API Notice (using local session):", err.message);
+        if (err.code === 'auth/email-already-in-use') {
+          try {
+            const cred = await signInWithEmailAndPassword(this.auth, cleanEmail, password);
+            userObj = {
+              uid: cred.user.uid,
+              email: cred.user.email,
+              displayName: username,
+              isAnonymous: false
+            };
+          } catch (loginErr) {
+            console.warn("Auth login fallback notice:", loginErr.message);
+          }
+        } else {
+          console.warn("Firebase Auth Register Notice:", err.message);
+        }
       }
     }
 
-    // Instant Reliable Local Session (Guaranteed 100% Success)
-    const localUser = {
-      uid: 'user_' + Date.now(),
-      email: cleanEmail,
-      displayName: username,
-      isAnonymous: false
-    };
-    this.saveLocalUser(localUser);
-    return { user: localUser, success: true };
+    if (!userObj) {
+      userObj = {
+        uid: 'user_' + Date.now(),
+        email: cleanEmail,
+        displayName: username,
+        isAnonymous: false
+      };
+    }
+
+    this.saveLocalUser(userObj);
+    await this.trackUserLogin(userObj, username);
+    return { user: userObj, success: true };
   }
 
+  // 2. LOGIN USER & FIRESTORE TELEMETRY UPDATE
   async loginUser(email, password) {
     const cleanEmail = email.trim();
-    const username = cleanEmail.split('@')[0];
+    const username = cleanEmail.includes('@') ? cleanEmail.split('@')[0] : 'Sign User';
 
-    // Try Firebase Auth
+    let userObj = null;
+
     if (this.auth) {
       try {
         const cred = await signInWithEmailAndPassword(this.auth, cleanEmail, password);
-        const fbUser = {
+        userObj = {
           uid: cred.user.uid,
           email: cred.user.email,
           displayName: username,
           isAnonymous: false
         };
-        this.saveLocalUser(fbUser);
-        await this.trackUserLogin(cred.user);
-        return { user: fbUser, success: true };
       } catch (err) {
-        console.warn("Firebase Auth API Notice (using local session):", err.message);
+        console.warn("Firebase Auth Login Notice:", err.message);
       }
     }
 
-    // Instant Reliable Local Session (Guaranteed 100% Success)
-    const localUser = {
-      uid: 'user_' + Date.now(),
-      email: cleanEmail,
-      displayName: username,
-      isAnonymous: false
-    };
-    this.saveLocalUser(localUser);
-    return { user: localUser, success: true };
+    if (!userObj) {
+      userObj = {
+        uid: 'user_' + Date.now(),
+        email: cleanEmail,
+        displayName: username,
+        isAnonymous: false
+      };
+    }
+
+    this.saveLocalUser(userObj);
+    await this.trackUserLogin(userObj, username);
+    return { user: userObj, success: true };
   }
 
   async logoutUser() {
@@ -199,23 +216,44 @@ class FirebaseService {
     this.saveLocalUser(null);
   }
 
-  // 2. TRACK USER LOGIN IN FIRESTORE IF AVAILABLE
-  async trackUserLogin(user, displayName = null) {
-    if (!this.db || !user) return;
+  // 3. WRITE USER DOCUMENT TO CLOUD FIRESTORE (`users` collection)
+  async trackUserLogin(userObj, displayName = 'Sign User') {
+    if (!this.db || !userObj) return;
+
+    const uid = userObj.uid || ('user_' + Date.now());
+    const email = userObj.email || 'user@example.com';
+    const nowStr = new Date().toISOString();
+
     try {
-      const userRef = doc(this.db, 'users', user.uid);
-      const nowStr = new Date().toISOString();
-      await setDoc(userRef, {
-        uid: user.uid,
-        email: user.email || 'Sign User',
-        displayName: displayName || (user.email ? user.email.split('@')[0] : 'Sign User'),
-        lastLoginAt: nowStr,
-        deviceOS: navigator.platform || 'Win32'
-      }, { merge: true });
-    } catch (e) {}
+      const userRef = doc(this.db, 'users', uid);
+      const snap = await getDoc(userRef);
+
+      if (snap.exists()) {
+        const existing = snap.data();
+        await setDoc(userRef, {
+          lastLoginAt: nowStr,
+          loginCount: (existing.loginCount || 1) + 1,
+          deviceOS: navigator.platform || 'Win32'
+        }, { merge: true });
+      } else {
+        await setDoc(userRef, {
+          createdAt: nowStr,
+          deviceOS: navigator.platform || 'Win32',
+          displayName: displayName || (email.includes('@') ? email.split('@')[0] : 'Sign User'),
+          email: email,
+          isAnonymous: false,
+          lastLoginAt: nowStr,
+          loginCount: 1,
+          uid: uid
+        });
+      }
+      console.log("Firestore 'users' document written successfully for:", email);
+    } catch (e) {
+      console.warn("Firestore Document Write Notice:", e.message);
+    }
   }
 
-  // 3. HISTORY TRANSLATION LOGGING
+  // 4. TRANSLATION HISTORY LOGGING TO CLOUD FIRESTORE
   async saveHistoryRecord(sentence, gestureCount, primaryGesture, mode = 'text') {
     const record = {
       uid: this.currentUser?.uid || 'anon',
@@ -227,7 +265,7 @@ class FirebaseService {
       timestamp: new Date().toLocaleTimeString()
     };
 
-    if (this.db && this.currentUser?.uid && !this.currentUser?.uid.startsWith('user_')) {
+    if (this.db) {
       try {
         await addDoc(collection(this.db, 'sign_language_history'), record);
       } catch (err) {}
@@ -252,6 +290,12 @@ class FirebaseService {
       landmarks: landmarkData,
       timestamp: new Date().toISOString()
     };
+
+    if (this.db) {
+      try {
+        await addDoc(collection(this.db, 'custom_gestures'), record);
+      } catch (e) {}
+    }
 
     const localCustom = JSON.parse(localStorage.getItem('local_custom_gestures') || '[]');
     localCustom.unshift({ id: 'custom_' + Date.now(), ...record });
