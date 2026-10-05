@@ -8,6 +8,7 @@ export default function SentenceBuilder({
   sentence,
   setSentence,
   currentPrediction,
+  triggeredGesture,
   mode,
   setMode,
   isBlackboardView,
@@ -21,10 +22,10 @@ export default function SentenceBuilder({
   const [calcExpression, setCalcExpression] = useState('');
   const [calcResult, setCalcResult] = useState('');
 
-  // Handle calculator sign inputs
+  // Handle calculator sign inputs ONLY when a single gesture trigger occurs
   useEffect(() => {
-    if (mode === 'calculator' && currentPrediction?.text) {
-      const txt = currentPrediction.text.trim();
+    if (mode === 'calculator' && triggeredGesture) {
+      const txt = (triggeredGesture.text || '').trim();
       const num = parseInt(txt);
 
       if (!isNaN(num)) {
@@ -32,9 +33,11 @@ export default function SentenceBuilder({
       } else if (txt === 'C' || txt === 'Clear') {
         setCalcExpression('');
         setCalcResult('');
+      } else if (triggeredGesture.mathOperator) {
+        setCalcExpression(prev => prev + ' ' + triggeredGesture.mathOperator + ' ');
       }
     }
-  }, [currentPrediction, mode]);
+  }, [triggeredGesture, mode]);
 
   const handleEvaluateCalc = () => {
     try {

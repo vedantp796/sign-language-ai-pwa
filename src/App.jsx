@@ -30,6 +30,7 @@ export default function App() {
     category: 'Standby'
   });
 
+  const [triggeredGesture, setTriggeredGesture] = useState(null);
   const [sentence, setSentence] = useState('');
   const [mode, setMode] = useState('text'); // 'text' | 'calculator'
   const [isBlackboardView, setIsBlackboardView] = useState(false);
@@ -39,6 +40,7 @@ export default function App() {
   // Same-frame holding counter matching fun_util.py (count_same_frame >= 12)
   const countSameFrameRef = useRef(0);
   const oldTextRef = useRef('');
+  const hasTriggeredRef = useRef(false);
 
   // Handle setting recognition target mode & sync with ref for real-time video loop
   const handleSetGestureMode = (newMode) => {
@@ -52,7 +54,7 @@ export default function App() {
     }
   };
 
-  // Handle incoming MediaPipe hand landmark detection results (Tasks Vision & Legacy)
+  // Handle incoming MediaPipe hand landmark detection results
   const handleLandmarksDetected = (results) => {
     setRawResults(results);
 
@@ -74,11 +76,20 @@ export default function App() {
         } else {
           oldTextRef.current = gestureKey;
           countSameFrameRef.current = 0;
+          hasTriggeredRef.current = false; // Reset trigger flag for new gesture
         }
 
-        // When held continuously for ~12 frames
-        if (countSameFrameRef.current >= 12) {
-          countSameFrameRef.current = 0; // Reset counter
+        // Trigger EXACTLY ONCE per gesture instance when held continuously for ~12 frames
+        if (countSameFrameRef.current >= 12 && !hasTriggeredRef.current) {
+          hasTriggeredRef.current = true; // Lock trigger so it doesn't print recursively
+
+          const triggerItem = {
+            text: currentPrediction.text,
+            action: currentPrediction.action,
+            mathOperator: currentPrediction.mathOperator,
+            id: Date.now()
+          };
+          setTriggeredGesture(triggerItem);
 
           if (mode === 'text') {
             if (currentPrediction.action === 'SPACE') {
@@ -107,6 +118,11 @@ export default function App() {
                 return updated;
               });
             }
+          } else if (mode === 'calculator') {
+            const txt = (currentPrediction.text || '').trim();
+            if (txt) {
+              speechService.speak(txt);
+            }
           }
         }
       }
@@ -122,6 +138,7 @@ export default function App() {
       });
       oldTextRef.current = '';
       countSameFrameRef.current = 0;
+      hasTriggeredRef.current = false; // Reset trigger flag when hand is removed
     }
   };
 
@@ -167,6 +184,7 @@ export default function App() {
                   sentence={sentence}
                   setSentence={setSentence}
                   currentPrediction={prediction}
+                  triggeredGesture={triggeredGesture}
                   mode={mode}
                   setMode={setMode}
                   isBlackboardView={isBlackboardView}
