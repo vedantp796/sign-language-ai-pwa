@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Camera, CameraOff, Eye, Box, Share2, FlipHorizontal, Maximize2 } from 'lucide-react';
+import { Camera, CameraOff, FlipHorizontal } from 'lucide-react';
 import { MediaPipeService } from '../services/mediapipeService';
 
 export default function CameraFeed({ onLandmarksDetected, isCameraActive, setIsCameraActive }) {
@@ -7,9 +7,6 @@ export default function CameraFeed({ onLandmarksDetected, isCameraActive, setIsC
   const canvasRef = useRef(null);
   const mpServiceRef = useRef(null);
 
-  const [showSkeleton, setShowSkeleton] = useState(true);
-  const [showNodes, setShowNodes] = useState(true);
-  const [showBox, setShowBox] = useState(true);
   const [isFlipped, setIsFlipped] = useState(true);
   const [fps, setFps] = useState(0);
   const [handCount, setHandCount] = useState(0);
@@ -54,9 +51,9 @@ export default function CameraFeed({ onLandmarksDetected, isCameraActive, setIsC
 
             if (canvasRef.current) {
               service.drawCanvasOverlay(canvasRef.current, results, {
-                showSkeleton,
-                showNodes,
-                showBox
+                showSkeleton: true,
+                showNodes: true,
+                showBox: true
               });
             }
 
@@ -125,7 +122,7 @@ export default function CameraFeed({ onLandmarksDetected, isCameraActive, setIsC
           className={`canvas-element ${isFlipped ? 'flipped' : ''}`}
         />
 
-        {/* High-Tech HUD Bracket Overlay */}
+        {/* High-Tech HUD Reticle Overlay */}
         <div className="hud-reticle">
           <div className="hud-corner tl"></div>
           <div className="hud-corner tr"></div>
@@ -162,33 +159,6 @@ export default function CameraFeed({ onLandmarksDetected, isCameraActive, setIsC
         >
           {isCameraActive ? <CameraOff size={16} /> : <Camera size={16} />}
           <span>{isCameraActive ? 'Pause Feed' : 'Start Feed'}</span>
-        </button>
-
-        <button
-          className={`tool-btn ${showSkeleton ? 'active' : ''}`}
-          onClick={() => setShowSkeleton(!showSkeleton)}
-          title="Toggle Skeleton Connectors"
-        >
-          <Share2 size={16} />
-          <span>Skeleton</span>
-        </button>
-
-        <button
-          className={`tool-btn ${showNodes ? 'active' : ''}`}
-          onClick={() => setShowNodes(!showNodes)}
-          title="Toggle 21 Joint Nodes"
-        >
-          <Eye size={16} />
-          <span>21 Nodes</span>
-        </button>
-
-        <button
-          className={`tool-btn ${showBox ? 'active' : ''}`}
-          onClick={() => setShowBox(!showBox)}
-          title="Toggle Hand Bounding Box"
-        >
-          <Box size={16} />
-          <span>Bounding Box</span>
         </button>
 
         <button
